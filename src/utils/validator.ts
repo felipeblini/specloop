@@ -34,22 +34,8 @@ export async function validateProject(
     }
   }
 
-  if (tools.includes("cursor")) {
-    const p = ".cursor/prompts/ralphy-plan.md";
-    if (!(await exists(path.join(projectDir, p)))) {
-      issues.push({ level: "warning", message: `Missing ${p}`, path: p });
-    }
-  }
-
   if (tools.includes("claude-code")) {
     const p = ".claude/commands/ralphy-plan.md";
-    if (!(await exists(path.join(projectDir, p)))) {
-      issues.push({ level: "warning", message: `Missing ${p}`, path: p });
-    }
-  }
-
-  if (tools.includes("opencode")) {
-    const p = "AGENTS.md";
     if (!(await exists(path.join(projectDir, p)))) {
       issues.push({ level: "warning", message: `Missing ${p}`, path: p });
     }

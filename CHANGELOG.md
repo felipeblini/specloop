@@ -72,3 +72,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Better error messages for process interruptions, distinguishing between timeouts, crashes, and external kills.
 - Real-time stdout/stderr capture: output is now captured via event listeners before piping to terminal, ensuring all output is logged even when streaming is enabled.
 
+## [0.4.0] - 2026-09-22
+
+Claude Code-only fork of ralphy-spec 0.3.6 (upstream commit 0c1cf7a).
+
+### Added
+- `tasks.md` format where every task declares the files it CREATEs/MODIFYs/DELETEs (including HTML, CSS, config and test files) and every test declares its own test files, `Covers`, `Run` and `Assert`.
+- `ralphy-spec tasks check [change]`: lints tasks.md (missing `Files:`/`Tests:`, globs, invalid actions, CREATE vs MODIFY against the repo, test files not declared in the task, test files not claimed by any test). `--strict` and `--json`.
+- `ralphy-spec tasks files [change]`: per-task file list, or reverse map with `--by-file`.
+- `ralphy-spec tasks sync [change]`: writes pending tasks into `openspec/project.yml` with `files_contract.allowed` = declared files, so `ralphy-spec run` enforces them.
+- `TASKS.md` board lists each task's declared files.
+
+### Changed
+- `/ralphy-plan`, `/ralphy-implement`, `/ralphy-validate`, `/ralphy-archive` and the loop prompt template now require and enforce the per-task/per-test file declarations.
+- Default backend is `claude-code`; unknown backends now fail with exit code 4 instead of silently falling back to noop.
+- `--tools` accepts only `claude-code` (other values are ignored with a warning); no interactive tool prompt.
+
+### Removed
+- Cursor and OpenCode support: backends, templates, `.cursor/`, `AGENTS.md`, `inquirer` dependency.
+- Upstream docs website (`docs/`) and its deploy workflow, translated READMEs, and committed runtime state (`.ralphy/`, `ralphy-spec/`).
+

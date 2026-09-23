@@ -1,25 +1,9 @@
 import type { Command } from "commander";
-import type { ToolId } from "../types";
-import { detectExistingTools } from "../utils/detector";
+import { parseToolsArg } from "../utils/tools";
 import { resolveProjectDir } from "../utils/paths";
 import { validateProject } from "../utils/validator";
 import { SpecLoader } from "../core/spec/loader";
 import { ValidatorRunner } from "../core/validators/runner";
-
-function parseToolsArg(arg?: string): ToolId[] | undefined {
-  if (!arg) return undefined;
-  const parts = arg
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const allowed: ToolId[] = ["cursor", "claude-code", "opencode"];
-  const tools: ToolId[] = [];
-  for (const p of parts) {
-    if ((allowed as string[]).includes(p)) tools.push(p as ToolId);
-  }
-  return tools.length ? tools : undefined;
-}
 
 export function registerValidateCommand(program: Command): void {
   program
@@ -27,10 +11,7 @@ export function registerValidateCommand(program: Command): void {
     .description("Validate that Ralph-OpenSpec setup is complete")
     .option("--dir <path>", "Target project directory (default: current directory)")
     .option("--task <taskId>", "Validate a specific task via validators (v2)")
-    .option(
-      "--tools <list>",
-      "Comma-separated list: cursor,claude-code,opencode (default: detect)"
-    )
+    .option("--tools <list>", "Kept for compatibility. Only claude-code is supported.")
     .action(async (opts: { dir?: string; tools?: string; task?: string }) => {
       const dir = resolveProjectDir(opts.dir);
 
@@ -73,7 +54,7 @@ export function registerValidateCommand(program: Command): void {
         }
       }
 
-      const tools = parseToolsArg(opts.tools) ?? (await detectExistingTools(dir));
+      const tools = parseToolsArg(opts.tools);
       const issues = await validateProject(dir, tools);
 
       if (!issues.length) {

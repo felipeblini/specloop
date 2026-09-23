@@ -8,6 +8,7 @@ import { registerReportCommand } from "./cli/report";
 import { registerTailCommand } from "./cli/tail";
 import { registerCheckpointCommand } from "./cli/checkpoint";
 import { registerBudgetCommand } from "./cli/budget";
+import { registerTasksCommand } from "./cli/tasks";
 
 function buildProgram(): Command {
   const program = new Command();
@@ -15,9 +16,9 @@ function buildProgram(): Command {
   program
     .name("ralphy-spec")
     .description(
-      "One-command setup for Ralph loop + OpenSpec workflows across Cursor, OpenCode, and Claude Code."
+      "One-command setup for Ralph loop + OpenSpec workflows for Claude Code."
     )
-    .version("0.3.6");
+    .version("0.4.0");
 
   registerInitCommand(program);
   registerValidateCommand(program);
@@ -28,6 +29,7 @@ function buildProgram(): Command {
   registerReportCommand(program);
   registerTailCommand(program);
   registerCheckpointCommand(program);
+  registerTasksCommand(program);
 
   return program;
 }

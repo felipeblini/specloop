@@ -1,164 +1,145 @@
-# ralphy-spec
+# ralphy-spec (Claude Code edition)
 
-[English](README.md) | [简体中文](README.zh.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
+**Spec-driven AI development with iterative execution, for Claude Code only.** Combines OpenSpec + Ralph Loop, with a `tasks.md` in which every task and every test states exactly which files it creates, modifies or deletes — including HTML, CSS and test files.
 
-**Spec-driven AI development with iterative execution.** Combines OpenSpec + Ralph Loop for predictable AI-assisted coding.
+Fork of [wenqingyu/ralphy-openspec](https://github.com/wenqingyu/ralphy-openspec) 0.3.6 (commit `0c1cf7a`). Cursor and OpenCode support were removed. See [CHANGELOG](CHANGELOG.md).
 
-**Website:** [https://ralphy-spec.org](https://ralphy-spec.org)
-**Docs:** [https://ralphy-spec.org/en/docs/](https://ralphy-spec.org/en/docs/)
-**Changelog:** [https://ralphy-spec.org/en/changelog/](https://ralphy-spec.org/en/changelog/) · [GitHub](https://github.com/wenqingyu/ralphy-openspec/blob/main/CHANGELOG.md)
+## Install
 
-## Quick Start
+Not published to npm. From this folder:
 
 ```bash
-npx ralphy-spec init
+npm install
+npm run build
+npm install -g .        # or: sh scripts/install.sh
 ```
 
-CLI basics:
+Then, in your project:
 
 ```bash
+ralphy-spec init
+```
+
+This creates `.claude/commands/ralphy-*.md`, `openspec/` and `ralphy-spec/`.
+
+## Claude Code commands
+
+| Command | What it does |
+|---------|--------------|
+| `/ralphy-plan` | Create specs + `tasks.md` (with files per task and per test) from requirements |
+| `/ralphy-implement` | Build with iterative loop, touching only declared files |
+| `/ralphy-validate` | Verify acceptance criteria + audit changed files vs declared files |
+| `/ralphy-archive` | Complete and archive |
+
+## tasks.md format
+
+```markdown
+- [ ] 2.1 Render the prize card on the home screen
+  - Files:
+    - CREATE `src/components/PrizeCard.vue`
+    - CREATE `src/styles/prize-card.css`
+    - MODIFY `index.html` — preload the display font
+    - CREATE `tests/unit/PrizeCard.test.ts`
+  - Acceptance criteria:
+    - GIVEN a prize WHEN the home renders THEN the card shows image and name
+  - Tests:
+    - [ ] T2.1.a renders the prize name and image
+      - Files:
+        - CREATE `tests/unit/PrizeCard.test.ts`
+      - Covers: `src/components/PrizeCard.vue`
+      - Run: `npm test -- PrizeCard`
+      - Assert: name text and `<img src>` match the props
+```
+
+Rules (enforced by `ralphy-spec tasks check`):
+
+- Every task has `Files:` (or `Files: NONE (reason)`) and `Tests:` (or `Tests: NONE (reason)`).
+- Entries are `CREATE|MODIFY|DELETE` + a backticked, concrete, repo-relative path. No globs.
+- `CREATE` only for files that don't exist yet and aren't created by an earlier task; `MODIFY`/`DELETE` only for files that exist or were created earlier.
+- Every test has its own `Files:`; any test file it lists must also be in the task's `Files:`.
+- Test files listed in a task must be claimed by some test (warning).
+
+Full template: [`src/templates/shared/openspec-tasks-template.md`](src/templates/shared/openspec-tasks-template.md).
+
+## CLI
+
+```bash
+ralphy-spec tasks check [change]          # lint tasks.md (--strict, --json)
+ralphy-spec tasks files [change]          # files per task/test (--by-file, --json)
+ralphy-spec tasks sync [change]           # tasks.md -> openspec/project.yml with files_contract
 ralphy-spec run --dry-run
-ralphy-spec run
+ralphy-spec run                           # backend: claude-code
 ralphy-spec status
 ralphy-spec budget --json
 ```
 
+`[change]` can be omitted when there is only one change under `openspec/changes/`.
+
+`tasks sync` turns each pending task into an engine task whose `files_contract.allowed` is exactly its declared files (plus the change's `tasks.md`), chained in document order. `ralphy-spec run` then reverts the workspace if Claude modifies a file outside that list.
+
 Logs & artifacts (during/after runs):
 - `ralphy-spec/STATUS.md`: live status (primary)
+- `ralphy-spec/TASKS.md`: task board, now with each task's declared files
 - `ralphy-spec/runs/<runId>.md`: run log (immutable on completion)
-- `ralphy-spec/logs/<runId>/...`: backend transcripts (stdout/stderr + metadata)
+- `ralphy-spec/logs/<runId>/...`: backend transcripts
 
-Then use the commands for your AI tool:
-
-### Cursor
-
-| Command | What it does |
-|---------|--------------|
-| `/ralphy-plan` | Create specs from requirements |
-| `/ralphy-implement` | Build with iterative loop |
-| `/ralphy-validate` | Verify acceptance criteria |
-| `/ralphy-archive` | Complete and archive |
-
-If you want to run the full workflow from a terminal with Cursor as the backend (no IDE slash commands), you must authenticate Cursor Agent first:
+## Example workflow
 
 ```bash
-cursor agent login
-# or set CURSOR_API_KEY in your environment
+You: /ralphy-plan Add a prize card to the home screen
+#   -> openspec/changes/add-prize-card/{proposal.md,tasks.md,specs/...}
+#   -> runs `ralphy-spec tasks check add-prize-card` until clean
 
-ralphy-spec run --backend cursor
-# backend output streams by default; add --no-stream-backend to silence
-```
+ralphy-spec tasks files add-prize-card --by-file   # review what will be touched
 
-### Claude Code
+You: /ralphy-implement add-prize-card
+#   or, headless: ralphy-spec tasks sync && ralphy-spec run
 
-| Command | What it does |
-|---------|--------------|
-| `/ralphy-plan` | Create specs from requirements |
-| `/ralphy-implement` | Build with iterative loop |
-| `/ralphy-validate` | Verify acceptance criteria |
-| `/ralphy-archive` | Complete and archive |
-
-### OpenCode
-
-Use natural language with AGENTS.md:
-- `"Follow AGENTS.md to plan [feature]"`
-- `"Follow AGENTS.md to implement [change]"`
-- `"Follow AGENTS.md to validate"`
-- `"Follow AGENTS.md to archive [change]"`
-
-**With Ralph Loop Runner:**
-```bash
-npm install -g @th0rgal/ralph-wiggum
-ralph "Follow AGENTS.md to implement add-api. Output <promise>TASK_COMPLETE</promise> when done." --max-iterations 20
-```
-
-## Example Workflow
-
-```bash
-# 1. Plan: Create spec from your idea
-You: /ralphy-plan Add user authentication with JWT
-
-# 2. Implement: AI builds it iteratively  
-You: /ralphy-implement add-user-auth
-
-# 3. Validate: Verify tests pass
 You: /ralphy-validate
-
-# 4. Archive: Complete the change
-You: /ralphy-archive add-user-auth
+You: /ralphy-archive add-prize-card
 ```
 
-## What Gets Created
+## What gets created
 
 ```
-.cursor/prompts/          # or .claude/commands/
+.claude/commands/
 ├── ralphy-plan.md
 ├── ralphy-implement.md
 ├── ralphy-validate.md
 └── ralphy-archive.md
 
-AGENTS.md                 # For OpenCode
-
 openspec/
 ├── specs/                # Source of truth
-├── changes/              # Active work  
+├── changes/              # Active work
 ├── archive/              # Completed
-└── project.md            # Context
+├── project.md            # Context
+└── project.yml           # Engine config + tasks (backend: claude-code)
 
-ralphy-spec/              # Local state + artifacts (IDE-friendly)
-├── state.db              # SQLite run/task ledger
-├── STATUS.md             # Live run snapshot (primary for `ralphy-spec status`)
-├── TASKS.md              # Task board view
-├── BUDGET.md             # Spend/budget breakdown
-├── runs/                 # Immutable run logs (`runs/<runId>.md`)
-├── logs/                 # Raw backend outputs (best-effort)
-├── worktrees/            # Git worktrees per task (when enabled)
-└── tasks/                # Per-task artifacts (CONTEXT / REPAIR / NOTES)
-    └── <taskId>/
-        ├── CONTEXT.md
-        ├── REPAIR.md
-        └── NOTES.md
+ralphy-spec/              # Local state + artifacts
+├── state.db
+├── STATUS.md
+├── TASKS.md
+├── BUDGET.md
+├── runs/
+├── logs/
+├── worktrees/
+└── tasks/<taskId>/{CONTEXT,REPAIR,NOTES}.md
 ```
 
-> Note: Legacy `.ralphy/` folders are migrated to `ralphy-spec/` automatically when found.
-
-## How It Works
+## How it works
 
 **Ralph Wiggum Loop:** AI receives the same prompt repeatedly until task completion. Each iteration, it sees previous work in files and self-corrects.
 
 **OpenSpec:** Specs before code. Structured specifications with acceptance criteria ensure AI knows exactly what to build.
 
-**The Combination:**
-
-| Problem | Solution |
-|---------|----------|
-| Vague requirements in chat | Specs lock intent |
-| AI stops mid-task | Loop retries until done |
-| No way to verify | Tests validate output |
-| Tool-specific setup | One command for all |
-
-## Installation Options
-
-```bash
-# npx (recommended)
-npx ralphy-spec init
-
-# Global install
-npm install -g ralphy-spec
-ralphy-spec init
-
-# With specific tools
-ralphy-spec init --tools cursor,claude-code,opencode
-```
+**File declarations:** the plan fixes which files each task and test touches, so the implementation step (and the engine's file contract) can hold Claude to it.
 
 ## Credits
 
-Built on the work of:
-
+- **[ralphy-openspec](https://github.com/wenqingyu/ralphy-openspec)** by Wenqing Yu (upstream)
 - **[Ralph Methodology](https://ghuntley.com/ralph)** by Geoffrey Huntley
-- **[opencode-ralph-wiggum](https://github.com/Th0rgal/opencode-ralph-wiggum)** by @Th0rgal  
 - **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** by Fission-AI
 
 ## License
 
-BSD-3-Clause
+BSD-3-Clause (upstream license retained in [LICENSE](LICENSE)).

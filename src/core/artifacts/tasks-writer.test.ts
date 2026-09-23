@@ -21,5 +21,24 @@ describe("writeTasksBoard", () => {
     expect(md).toContain("# TASKS");
     expect(md).toContain("[~] running");
   });
+
+  it("lists the declared files of each task", async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ralphy-artifacts-"));
+    await writeTasksBoard({
+      repoRoot,
+      runId: "run_2",
+      specTasks: [
+        {
+          id: "c--2-1",
+          title: "Card",
+          filesContract: { allowed: ["src/Card.vue", "src/card.css"], forbidden: [], allowNewFiles: true },
+        } as any,
+      ],
+      rows: [{ taskId: "c--2-1", status: "pending", iteration: 0 }],
+    });
+    const md = await fs.readFile(path.join(getRalphyRoot(repoRoot), FILES.tasks), "utf8");
+    expect(md).toContain("## Files");
+    expect(md).toContain("- `src/card.css`");
+  });
 });
 

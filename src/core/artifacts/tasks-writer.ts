@@ -66,6 +66,20 @@ export async function writeTasksBoard(args: {
   }
   lines.push(``);
 
+  // Declared files per task (from files_contract.allowed).
+  const withFiles = args.rows
+    .map((r) => ({ r, spec: args.specTasks.find((t) => t.id === r.taskId) }))
+    .filter((x) => x.spec?.filesContract?.allowed?.length);
+  if (withFiles.length) {
+    lines.push(`## Files`);
+    lines.push(``);
+    for (const { r, spec } of withFiles) {
+      lines.push(`### ${r.taskId}`);
+      for (const f of spec!.filesContract!.allowed) lines.push(`- \`${f}\``);
+      lines.push(``);
+    }
+  }
+
   // Optional details for blocked/error tasks.
   const trouble = args.rows.filter((r) => r.status === "blocked" || r.status === "error");
   if (trouble.length) {

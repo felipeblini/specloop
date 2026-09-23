@@ -1,26 +1,16 @@
 {
-  "name": "ralphy-spec",
-  "version": "0.3.6",
-  "description": "One-command setup for Ralph loop + OpenSpec workflows across Cursor, OpenCode, and Claude Code.",
+  "name": "ralphy-spec-claude",
+  "version": "0.4.0",
+  "description": "One-command setup for Ralph loop + OpenSpec workflows for Claude Code, with tasks.md that declares the files each task and test creates or modifies.",
   "license": "BSD-3-Clause",
   "author": "Wenqing Yu",
-  "homepage": "https://ralphy-spec.org",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/wenqingyu/ralphy-openspec.git"
-  },
-  "bugs": {
-    "url": "https://github.com/wenqingyu/ralphy-openspec/issues"
-  },
   "keywords": [
     "openspec",
     "ralph",
     "ralph-wiggum",
     "ai",
-    "cursor",
     "claude",
     "claude-code",
-    "opencode",
     "spec-driven",
     "ai-coding",
     "ai-assistant"
@@ -33,9 +23,6 @@
     "dist/",
     "scripts/",
     "README.md",
-    "README.zh.md",
-    "README.ko.md",
-    "README.ja.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
@@ -61,7 +48,6 @@
     "execa": "^9.6.0",
     "fast-glob": "^3.3.3",
     "fs-extra": "^11.3.0",
-    "inquirer": "^12.6.3",
     "minimatch": "^10.0.3",
     "ora": "^9.0.0",
     "yaml": "^2.8.0",

@@ -3,26 +3,22 @@ import path from "node:path";
 import { SpecLoader } from "../core/spec/loader";
 import { buildTaskDAG } from "../core/spec/dag";
 import { ClaudeCodeBackend } from "../core/backends/claude-code";
-import { CursorBackend } from "../core/backends/cursor";
 import { NoopBackend } from "../core/backends/noop";
-import { OpenCodeBackend } from "../core/backends/opencode";
 import { PatchModeWorkspace } from "../core/workspace/patch-mode";
 import { WorktreeModeWorkspace } from "../core/workspace/worktree-mode";
 import { EngineLoop } from "../core/engine/loop";
 
 function createBackend(id: string) {
   switch (id) {
-    case "cursor":
-      return new CursorBackend();
-    case "opencode":
-      return new OpenCodeBackend();
     case "claude-code":
       return new ClaudeCodeBackend();
     case "noop":
       return new NoopBackend("noop");
     default:
-      // Fallback: treat as noop for unknown ids (but retain id for diagnostics).
-      return new NoopBackend(id);
+      throw new Error(
+        `Unsupported backend "${id}". This build supports Claude Code only (claude-code) or noop. ` +
+          `Update defaults.backend in openspec/project.yml or pass --backend claude-code.`
+      );
   }
 }
 
@@ -30,7 +26,7 @@ export function registerRunCommand(program: Command): void {
   program
     .command("run")
     .description("Execute the ralphy-spec engine loop")
-    .option("--backend <id>", "Backend id: cursor|opencode|claude-code|noop")
+    .option("--backend <id>", "Backend id: claude-code|noop")
     .option("--workspace <mode>", "Workspace mode: worktree|patch")
     .option("--artifact-dir <dir>", "Override artifact root directory (enables artifacts)")
     .option("--task <taskId>", "Run a single task (skips dependency checks)")
@@ -99,10 +95,17 @@ export function registerRunCommand(program: Command): void {
           return;
         }
 
-        const backendId = opts.backend ?? spec.defaults.backend ?? "cursor";
+        const backendId = opts.backend ?? spec.defaults.backend ?? "claude-code";
         const workspaceMode = opts.workspace ?? spec.defaults.workspaceMode ?? "patch";
 
-        const backend = createBackend(backendId);
+        let backend;
+        try {
+          backend = createBackend(backendId);
+        } catch (e: any) {
+          process.stderr.write(String(e?.message ?? e) + "\n");
+          process.exitCode = 4;
+          return;
+        }
         const workspace =
           workspaceMode === "worktree"
             ? new WorktreeModeWorkspace(path.resolve(repoRoot))

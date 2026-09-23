@@ -137,3 +137,9 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# ralphy-spec runtime state (local)
+ralphy-spec/state.db
+ralphy-spec/runs/
+ralphy-spec/logs/
+ralphy-spec/worktrees/

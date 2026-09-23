@@ -37,7 +37,7 @@ export async function ensureOpenSpecScaffold(projectDir: string): Promise<void> 
     '  repoRoot: "."',
     "",
     "defaults:",
-    '  backend: "cursor"',
+    '  backend: "claude-code"',
     '  workspaceMode: "patch"',
     '  checkpointMode: "commit"',
     "  validators: []",
@@ -81,37 +81,12 @@ export async function installToolTemplates(
 ): Promise<void> {
   const templatesRoot = getDistTemplatesDir();
 
-  // Cursor
-  if (tools.includes("cursor")) {
-    const src = path.join(templatesRoot, "cursor");
-    const dst = path.join(projectDir, ".cursor", "prompts");
-    await fse.ensureDir(dst);
-    await fse.copy(src, dst, { overwrite: opts.force, errorOnExist: false });
-  }
-
-  // Claude Code
+  // Claude Code (the only supported tool in this build)
   if (tools.includes("claude-code")) {
     const src = path.join(templatesRoot, "claude-code");
     const dst = path.join(projectDir, ".claude", "commands");
     await fse.ensureDir(dst);
     await fse.copy(src, dst, { overwrite: opts.force, errorOnExist: false });
-  }
-
-  // OpenCode / AGENTS.md
-  if (tools.includes("opencode")) {
-    const srcAgents = path.join(templatesRoot, "opencode", "AGENTS.md");
-    const dstAgents = path.join(projectDir, "AGENTS.md");
-
-    if (opts.force) {
-      await fse.copyFile(srcAgents, dstAgents);
-    } else {
-      // Only write if missing
-      try {
-        await fs.access(dstAgents);
-      } catch {
-        await fse.copyFile(srcAgents, dstAgents);
-      }
-    }
   }
 
   // Ralphy config/state
