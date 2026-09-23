@@ -58,7 +58,7 @@ export function registerValidateCommand(program: Command): void {
       const issues = await validateProject(dir, tools);
 
       if (!issues.length) {
-        process.stdout.write("OK: Ralph-OpenSpec setup looks good.\n");
+        process.stdout.write("OK: specloop setup looks good.\n");
         return;
       }
 
