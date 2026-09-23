@@ -21,8 +21,10 @@ A implementação não acontece dentro do Claude Code: ela roda no terminal pelo
 
 Fora do npm, direto do GitHub (o `dist/` compilado vai no repositório; mudou o código, `npm run build` antes do commit):
 
+Pelo tarball, não por `github:felipeblini/specloop`: no Windows o npm 11 instala dependência git global como junction para o clone temporário, que ele apaga em seguida, e o comando some.
+
 ```bash
-npm install -g github:felipeblini/specloop
+npm install -g https://github.com/felipeblini/specloop/archive/refs/heads/main.tar.gz
 specloop --version
 ```
 
