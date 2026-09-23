@@ -1,7 +1,7 @@
 {
-  "name": "ralphy-spec-claude",
-  "version": "0.4.0",
-  "description": "One-command setup for Ralph loop + OpenSpec workflows for Claude Code, with tasks.md that declares the files each task and test creates or modifies.",
+  "name": "specloop",
+  "version": "0.5.0",
+  "description": "OpenSpec planning for Claude Code: tasks.md where every task and test declares its files, ready for an external loop (loop.mjs + judge.mjs).",
   "license": "BSD-3-Clause",
   "author": "Wenqing Yu",
   "keywords": [
@@ -16,7 +16,7 @@
     "ai-assistant"
   ],
   "bin": {
-    "ralphy-spec": "bin/ralphy-spec.js"
+    "specloop": "bin/specloop.js"
   },
   "files": [
     "bin/",

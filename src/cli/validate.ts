@@ -8,7 +8,7 @@ import { ValidatorRunner } from "../core/validators/runner";
 export function registerValidateCommand(program: Command): void {
   program
     .command("validate")
-    .description("Validate that Ralph-OpenSpec setup is complete")
+    .description("Validate that the specloop setup is complete")
     .option("--dir <path>", "Target project directory (default: current directory)")
     .option("--task <taskId>", "Validate a specific task via validators (v2)")
     .option("--tools <list>", "Kept for compatibility. Only claude-code is supported.")

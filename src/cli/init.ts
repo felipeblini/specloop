@@ -8,7 +8,7 @@ import { ensureRalphyFolders, getRalphyRoot } from "../core/folders";
 export function registerInitCommand(program: Command): void {
   program
     .command("init")
-    .description("Initialize Ralph + OpenSpec workflow files for Claude Code in a project")
+    .description("Initialize OpenSpec + Claude Code commands + CLAUDE.md in a project")
     .option("--dir <path>", "Target project directory (default: current directory)")
     .option("--tools <list>", "Kept for compatibility. Only claude-code is supported.")
     .option("--force", "Overwrite existing files", false)
@@ -25,7 +25,9 @@ export function registerInitCommand(program: Command): void {
       await ensureRalphyFolders(options.dir);
 
       process.stdout.write(
-        `Initialized Ralph-OpenSpec in ${options.dir}\nConfigured tools: ${tools.join(", ")}\n`
+        `specloop initialized in ${options.dir}\n` +
+          `Commands: /specloop-plan, /specloop-validate, /specloop-archive (.claude/commands/)\n` +
+          `CLAUDE.md: fill the "## Comandos" block if it is empty (judge.mjs runs those commands)\n`
       );
       process.stdout.write(
         `\nArtifact folder created: ${getRalphyRoot(options.dir)}\n` +

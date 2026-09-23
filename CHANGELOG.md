@@ -92,3 +92,20 @@ Claude Code-only fork of ralphy-spec 0.3.6 (upstream commit 0c1cf7a).
 - Cursor and OpenCode support: backends, templates, `.cursor/`, `AGENTS.md`, `inquirer` dependency.
 - Upstream docs website (`docs/`) and its deploy workflow, translated READMEs, and committed runtime state (`.ralphy/`, `ralphy-spec/`).
 
+## [0.5.0] - 2026-09-22
+
+Renomeado para **specloop**. A implementação sai da sessão: roda no terminal pelo loop externo (`loop.mjs` + `judge.mjs`).
+
+### Changed
+- CLI `ralphy-spec` → `specloop`; comandos `/ralphy-plan|validate|archive` → `/specloop-plan|validate|archive`.
+- Formato do `tasks.md` alinhado ao `loop.mjs`: grupos `## N.`, detalhes recuados 4 espaços, `CRIA`/`ALTERA`/`REMOVE`, teste como tarefa própria antes da implementação, `Casos`, `Import` com `../`, `Fica verde`.
+- `specloop tasks check` replica a leitura do loop e as regras do juiz (escopo derivado do texto, tipo teste/impl, ordem, trava de testes por hash, infraestrutura, recuo).
+- `specloop tasks files --fases` mostra as fases como o `loop.mjs --listar`.
+- `specloop init` cria `CLAUDE.md` com `## Comandos` a partir dos scripts do `package.json`; `init`/`update` apagam os `ralphy-*.md` antigos.
+- Templates em português.
+
+### Removed
+- `/ralphy-implement` (o loop roda fora da sessão).
+- `tasks sync` e o modelo de prompt do Ralph loop.
+- `openspec/changes/add-cli-plan-command` (plano inacabado do upstream).
+

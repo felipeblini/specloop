@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-echo "Installing ralphy-spec-claude (Claude Code-only fork) from this checkout..."
+echo "Installing specloop from this checkout..."
 
 if ! command -v node >/dev/null 2>&1; then
   echo "ERROR: node is not installed. Please install Node.js >= 20.19.0." >&2
@@ -23,4 +23,4 @@ npm run build
 npm install -g .
 
 echo "Done."
-echo "Try: ralphy-spec --help"
+echo "Try: specloop --help"

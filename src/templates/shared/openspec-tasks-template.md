@@ -1,78 +1,75 @@
-# OpenSpec Tasks Template
+# Modelo do tasks.md (specloop)
 
-Use this structure for `openspec/changes/<change-name>/tasks.md`.
-
-Every task declares **every file it creates, modifies or deletes** — source code,
-markup (HTML, templates, components), styles (CSS/SCSS), config, fixtures,
-snapshots and test files. Every test declares **the test file(s) it creates or
-modifies** and which source files it covers. Check the result with:
+Estrutura de `openspec/changes/<change>/tasks.md`. Ela é lida por duas pontas:
+por você, e pelo loop externo (`loop.mjs` + `judge.mjs`), que transforma cada
+grupo em fases de **teste** e de **implementação** e usa os arquivos citados em
+cada tarefa como escopo da fase. Confira com:
 
 ```bash
-ralphy-spec tasks check <change-name>
+specloop tasks check <change>
+specloop tasks files <change> --fases
 ```
 
-## File entry syntax
+## Regras
 
-```
-- CREATE `path/from/repo/root.ext` — optional note
-- MODIFY `path/from/repo/root.ext` — what changes
-- DELETE `path/from/repo/root.ext` — why
-```
+1. Grupos são `## N. Título`. Tarefa fora de um grupo assim é ignorada pelo loop.
+2. Tarefa é `- [ ] N.M Título`. Tudo que detalha a tarefa fica recuado **4 espaços**
+   (o loop descarta linhas com 1–3 espaços). Nada de caixa `[ ]` aninhada.
+3. Cada tarefa lista **todos** os arquivos que toca, um por linha:
+   `- CRIA \`caminho\``, `- ALTERA \`caminho\` — o quê`, `- REMOVE \`caminho\` — por quê`.
+   Isso inclui HTML, componentes, CSS, config, fixtures e testes. Caminho concreto,
+   relativo à raiz, sem glob.
+4. **Tarefa de teste** = o primeiro arquivo é um teste (`*.test|spec.ts|tsx|js|mjs`).
+   Ela só CRIA: o teste (e, se precisar, fixtures). Lista os `Casos` com o valor
+   esperado de cada um e o `Run`. O alvo do teste aparece só no `Import`, com caminho
+   relativo começando por `../` — assim o loop não o põe no escopo da fase de teste.
+5. **Tarefa de implementação** não cita arquivo de teste. Diz quais testes ficam
+   verdes: `- Fica verde: 2.1`.
+6. Dentro de um grupo: testes primeiro, implementação depois. O juiz reprova teste
+   que nasce verde.
+7. Teste nunca é ALTERA nem REMOVE: o juiz trava testes por hash quando a fase
+   fecha. Caso novo = arquivo de teste novo.
+8. Nenhuma outra menção a caminho no texto da tarefa: todo caminho citado vira
+   escopo da fase. Precisa mencionar? Declare-o.
+9. Repo sem `package.json`: o grupo 1 é o scaffold (o loop libera a árvore inteira
+   e não roda teste antes). Os testes começam no grupo 2.
+10. Não use `### ... teste antes ...`, `**Plano de teste**` nem linha começando com
+    `**Teste`: o loop lê isso como plano e desliga a separação teste → implementação.
 
-- Concrete, repo-relative paths only. No globs (`src/**`), no "etc.".
-- `CREATE` only for files that do not exist yet; the first task that creates a file owns the CREATE, later tasks use `MODIFY`.
-- A test file listed under a test's `Files:` MUST also be listed in its task's `Files:`.
-- Nothing to declare? Write `Files: NONE (reason)` or `Tests: NONE (reason)`.
-
-## Example
+## Exemplo
 
 ```markdown
 # Tasks: add-prize-card
 
-## 1. Planning
-- [ ] 1.1 Confirm scope and impacted files
-  - Files: NONE (read-only review)
-  - Acceptance criteria:
-    - GIVEN the current `openspec/specs/` baseline
-    - WHEN this change is implemented
-    - THEN only the files declared below are touched
-  - Tests: NONE (no code change)
+## 1. Card do brinde
 
-## 2. Implementation
-- [ ] 2.1 Render the prize card on the home screen
-  - Files:
-    - CREATE `src/components/PrizeCard.vue`
-    - CREATE `src/styles/prize-card.css`
-    - MODIFY `src/views/HomeView.vue` — render <PrizeCard> in the prize list
-    - MODIFY `index.html` — preload the display font used by the card
-    - CREATE `tests/unit/PrizeCard.test.ts`
-    - CREATE `tests/e2e/home-prize.spec.ts`
-  - Implementation notes:
-    - Styles live in the new CSS file; do not add inline styles
-  - Acceptance criteria:
-    - GIVEN a prize with name and image
-    - WHEN the home screen renders
-    - THEN the card shows the image and the name
-  - Tests:
-    - [ ] T2.1.a renders the prize name and image
-      - Files:
-        - CREATE `tests/unit/PrizeCard.test.ts`
-      - Covers: `src/components/PrizeCard.vue`
-      - Run: `npm test -- PrizeCard`
-      - Assert: name text and `<img src>` match the props
-    - [ ] T2.1.b selected card gets the highlight style
-      - Files:
-        - CREATE `tests/e2e/home-prize.spec.ts`
-      - Covers: `src/views/HomeView.vue`, `src/styles/prize-card.css`
-      - Run: `npx playwright test home-prize`
-      - Assert: clicking a card adds `.is-selected` and the check badge is visible
+**Goal**: mostrar cada brinde cadastrado como um card na home
 
-## 3. Validation
-- [ ] 3.1 Full validator pass
-  - Files: NONE (verification only)
-  - Tests:
-    - [ ] T3.1.a typecheck, unit and e2e suites are green
-      - Files: NONE (runs existing suites)
-      - Run: `npm run typecheck && npm test`
-      - Assert: exit code 0
+- [ ] 1.1 Testes do card do brinde
+    - CRIA `tests/unit/prize-card.test.ts`
+    - Casos:
+        - mostra o nome recebido: nome "Caneca" → texto "Caneca" no card
+        - usa a imagem recebida: url "/img/caneca.png" → atributo src igual
+        - selecionado: prop selected true → classe is-selected no card
+    - Import: `import PrizeCard from '../../src/components/PrizeCard.vue'`
+    - Run: `npx vitest run tests/unit/prize-card.test.ts`
+- [ ] 1.2 Componente do card do brinde
+    - CRIA `src/components/PrizeCard.vue`
+    - CRIA `src/styles/prize-card.css`
+    - ALTERA `index.html` — preload da fonte do título
+    - Fica verde: 1.1
+
+## 2. Lista de brindes na home
+
+- [ ] 2.1 Testes da lista na home
+    - CRIA `tests/unit/home-prizes.test.ts`
+    - Casos:
+        - sem brindes: lista vazia → mensagem "Nenhum brinde cadastrado ainda."
+        - com dois brindes → dois cards, na ordem de cadastro
+    - Import: `import HomeView from '../../src/views/HomeView.vue'`
+    - Run: `npx vitest run tests/unit/home-prizes.test.ts`
+- [ ] 2.2 Lista de cards na home
+    - ALTERA `src/views/HomeView.vue` — renderiza um card por brinde
+    - ALTERA `src/styles/prize-card.css` — grade dos cards
+    - Fica verde: 2.1
 ```

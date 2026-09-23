@@ -22,7 +22,7 @@ export async function validateProject(
   if (!(await exists(openspecDir))) {
     issues.push({
       level: "error",
-      message: "Missing openspec directory. Run `ralphy-openspec init`.",
+      message: "Missing openspec directory. Run `specloop init`.",
       path: "openspec/",
     });
     return issues;
@@ -35,10 +35,14 @@ export async function validateProject(
   }
 
   if (tools.includes("claude-code")) {
-    const p = ".claude/commands/ralphy-plan.md";
+    const p = ".claude/commands/specloop-plan.md";
     if (!(await exists(path.join(projectDir, p)))) {
       issues.push({ level: "warning", message: `Missing ${p}`, path: p });
     }
+  }
+
+  if (!(await exists(path.join(projectDir, "CLAUDE.md"))) && !(await exists(path.join(projectDir, "AGENTS.md")))) {
+    issues.push({ level: "error", message: "Missing CLAUDE.md (loop.mjs preflight requires it; judge.mjs reads ## Comandos from it). Run `specloop init`.", path: "CLAUDE.md" });
   }
 
   const newRoot = path.join(projectDir, DEFAULT_ROOT_DIR);

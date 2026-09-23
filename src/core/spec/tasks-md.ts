@@ -1,30 +1,36 @@
 /**
- * Parser + linter for `openspec/changes/<change>/tasks.md`.
+ * Parser + linter for `openspec/changes/<change>/tasks.md`, shaped for the external
+ * loop (loop.mjs + judge.mjs). The loop reads tasks.md like this:
  *
- * Every task MUST declare the files it creates/modifies/deletes, and every test
- * MUST declare the test files it creates/modifies. Format:
+ *   - groups are `## N. Title` (also `## Phase N:`, `## Fase N:`, `## Etapa N —`);
+ *     tasks under any other `##` heading are silently ignored
+ *   - a task is `- [ ] N.M text`; its continuation lines need 4+ spaces of indent
+ *     (lines with 1–3 spaces are dropped)
+ *   - the phase scope is every path the task text cites (backticked or bare)
+ *   - a task whose FIRST cited file is a test is a test task; consecutive tasks of
+ *     the same kind form one phase, so tests must come before implementation
+ *   - test files are locked by hash once their phase closes: never modify them later
  *
- *   - [ ] 2.1 Render the prize card
- *     - Files:
- *       - CREATE `src/components/PrizeCard.vue`
- *       - CREATE `src/styles/prize-card.css`
- *       - MODIFY `index.html` — link the new stylesheet
- *       - CREATE `tests/unit/PrizeCard.test.ts`
- *     - Acceptance criteria:
- *       - GIVEN ... WHEN ... THEN ...
- *     - Tests:
- *       - [ ] T2.1.a shows the prize name
- *         - Files:
- *           - CREATE `tests/unit/PrizeCard.test.ts`
- *         - Covers: `src/components/PrizeCard.vue`
- *         - Run: `npm test -- PrizeCard`
- *         - Assert: the name passed as prop is rendered
+ * Format (Portuguese keywords; CREATE/MODIFY/DELETE are accepted too):
  *
- * A task or test with nothing to declare uses `- Files: NONE (reason)` /
- * `- Tests: NONE (reason)`.
+ *   ## 1. Card do brinde
+ *
+ *   **Goal**: mostrar os brindes cadastrados na home
+ *
+ *   - [ ] 1.1 Testes do card do brinde
+ *       - CRIA `tests/unit/prize-card.test.ts`
+ *       - Casos:
+ *           - mostra o nome recebido ("Caneca" → texto "Caneca")
+ *       - Import: `import PrizeCard from '../../src/components/PrizeCard.vue'`
+ *       - Run: `npx vitest run tests/unit/prize-card.test.ts`
+ *   - [ ] 1.2 Componente do card
+ *       - CRIA `src/components/PrizeCard.vue`
+ *       - CRIA `src/styles/prize-card.css`
+ *       - ALTERA `index.html` — preload da fonte
+ *       - Fica verde: 1.1
  */
 
-export type FileAction = "CREATE" | "MODIFY" | "DELETE";
+export type FileAction = "CRIA" | "ALTERA" | "REMOVE";
 
 export type FileEntry = {
   action: FileAction;
@@ -33,330 +39,317 @@ export type FileEntry = {
   line: number;
 };
 
-export type FilesDecl =
-  | { kind: "list"; entries: FileEntry[]; line: number }
-  | { kind: "none"; reason: string; line: number };
-
-export type TaskTest = {
-  id: string;
-  title: string;
-  done: boolean;
-  line: number;
-  files?: FilesDecl;
-  covers: string[];
-  run?: string;
-  assert?: string;
-};
+export type TaskKind = "teste" | "impl";
 
 export type TaskEntry = {
   id: string;
   title: string;
   done: boolean;
   line: number;
-  section?: string;
-  files?: FilesDecl;
-  tests?: { kind: "list"; items: TaskTest[]; line: number } | { kind: "none"; reason: string; line: number };
-  hasLegacyTestPlan: boolean;
+  group: { n: number; title: string; line: number };
+  kind: TaskKind;
+  files: FileEntry[];
+  /** Paths the loop will extract from this task's text (its phase scope). */
+  loopScope: string[];
+  greens: string[];
+  cases: string[];
+  run?: string;
+  text: string;
 };
 
 export type TasksIssue = {
   level: "error" | "warning";
   line: number;
   taskId?: string;
-  testId?: string;
   message: string;
 };
 
-type Node = {
-  indent: number;
-  text: string;
-  line: number;
-  children: Node[];
+// ─── Mirrors of loop.mjs / judge.mjs (keep in sync when the loop changes) ─────
+const EXT = /\.(?:[cm]?[jt]sx?|json|ya?ml|css|scss|vue|html|md|txt|svg|png|csv)$/i;
+const SOLTO_RE = /(?:^|[\s("'])((?:[\w.@-]+\/)+[\w.@-]+\.\w{1,5})(?=$|[\s,;:)"'.])/g;
+const SPEC_RE = /^(?:openspec|specs|\.specify|\.spec)\//;
+const INFRA_RE = /^(?:design\/|openspec\/|specs\/|\.specify\/|\.spec\/|judge\.mjs$|loop\.mjs$|CLAUDE\.md$|AGENTS\.md$)/;
+const FASE_RE = /^(?:(?:Phase|Fase|Etapa|Step)\s+\d+\s*[:—–-]?|\d+\.)\s*/i;
+const TASK_LINE_RE = /^\s*-\s*\[\s*([ xX]?)\s*\]\s*(?:(T\d+|\d+\.\d+)\s+)?(.*)$/;
+/** loop.mjs decides task kind with this. */
+const LOOP_TEST_RE = /\.(test|spec)\.[cm]?[jt]sx?$/;
+/** judge.mjs only collects/locks these; a test file must match it. */
+const JUDGE_TEST_RE = /\.(test|spec)\.(ts|tsx|js|mjs)$/;
+const PLANO_SUB_RE = /^#{3,}[^\n]*(?:\btest\w*\b[^\n]*\bantes\b|\btests?\b[^\n]*\bbefore\b|plano de testes?|test plan)/i;
+const PLANO_PAR_RE = /^\*\*(?:plano de testes?|test plan|testes?|tests?)\b/i;
+
+/** Same extraction as loop.mjs `caminhos()`: what the loop treats as phase scope. */
+export function loopPaths(texto: string): string[] {
+  const out: string[] = [];
+  for (const m of texto.matchAll(/`([^`\s]+)`/g)) {
+    const p = m[1].replace(/\\/g, "/").replace(/^\.\//, "");
+    if (p === "*") {
+      out.push("*");
+      continue;
+    }
+    if (/[*@(){}=:,'"<>$]/.test(p) || /^[\d/]/.test(p) || p.includes("..")) continue;
+    if (/^\.[\w-]+$/.test(p) && EXT.test(`x${p}`)) continue;
+    if (EXT.test(p) || /^\.[\w-]+$/.test(p)) {
+      out.push(p);
+      continue;
+    }
+    if (p.includes("/") && !/\.\w+$/.test(p.split("/").filter(Boolean).pop() ?? "")) {
+      out.push(p.endsWith("/") ? p : `${p}/`);
+    }
+  }
+  for (const m of texto.matchAll(SOLTO_RE)) {
+    const p = m[1].replace(/\\/g, "/");
+    if (EXT.test(p) && !SPEC_RE.test(p) && !p.startsWith("design/") && !p.includes("..")) out.push(p);
+  }
+  return [...new Set(out)].filter((p) => !INFRA_RE.test(p));
+}
+
+export const isTestFile = (p: string) => JUDGE_TEST_RE.test(p);
+
+const FILE_RE = /^-\s+(CRIA|ALTERA|REMOVE|CREATE|MODIFY|DELETE)\s+`([^`]+)`\s*(?:[—–:-]+\s*(.*))?$/i;
+const ACTION: Record<string, FileAction> = {
+  CRIA: "CRIA", CREATE: "CRIA",
+  ALTERA: "ALTERA", MODIFY: "ALTERA",
+  REMOVE: "REMOVE", DELETE: "REMOVE",
 };
 
-const TASK_RE = /^\[( |x|X)\]\s+(\d+(?:\.\d+)*)\.?\s+(.*)$/;
-const TEST_RE = /^(?:\[( |x|X)\]\s+)?(T\d[\w.-]*)\s*[:—–-]?\s*(.*)$/;
-const FILE_RE = /^(CREATE|MODIFY|DELETE)\s+`([^`]+)`\s*(?:[—–:-]+\s*(.*))?$/i;
-const GLOB_CHARS = /[*?[\]{}]/;
-const TEST_FILE_RE = /(^|\/)(__tests__|tests?|spec|e2e)\/|\.(test|spec|cy|e2e)\.[a-z0-9]+$/i;
+export function parseTasksMd(text: string): { tasks: TaskEntry[]; issues: TasksIssue[] } {
+  const issues: TasksIssue[] = [];
+  const tasks: TaskEntry[] = [];
+  const lines = text.split(/\r?\n/);
+
+  let group: TaskEntry["group"] | null = null;
+  let groupIsPhase = false;
+  let cur: { entry: TaskEntry; body: Array<{ raw: string; line: number }> } | null = null;
+  let inFence = false;
+
+  const close = () => {
+    if (!cur) return;
+    const { entry, body } = cur;
+    let inCases = false;
+    let casesIndent = 0;
+    for (const { raw, line } of body) {
+      const t = raw.trim();
+      if (inCases && indentOf(raw) > casesIndent && /^-\s+/.test(t)) {
+        entry.cases.push(t.replace(/^-\s+/, ""));
+        continue;
+      }
+      inCases = false;
+      if (TASK_LINE_RE.test(t)) {
+        issues.push({ level: "error", line, taskId: entry.id, message: "Caixa de seleção aninhada: o loop a trata como outra tarefa. Use bullets simples dentro da tarefa." });
+        continue;
+      }
+      const fm = FILE_RE.exec(t);
+      if (fm) {
+        entry.files.push({
+          action: ACTION[fm[1].toUpperCase()],
+          path: fm[2].trim().replace(/^\.\//, ""),
+          note: fm[3]?.trim() || undefined,
+          line,
+        });
+        continue;
+      }
+      if (/^-\s+(?:\*\*)?(?:CRIA|ALTERA|REMOVE|CREATE|MODIFY|DELETE)\b/i.test(t)) {
+        issues.push({ level: "error", line, taskId: entry.id, message: `Entrada de arquivo inválida: "${t}". Use: - CRIA|ALTERA|REMOVE \`caminho/do/arquivo\` [— nota]` });
+        continue;
+      }
+      const lab = /^-\s+([A-Za-zÀ-ú ]+):\s*(.*)$/.exec(t);
+      if (lab) {
+        const key = lab[1].trim().toLowerCase();
+        inCases = key === "casos";
+        casesIndent = indentOf(raw);
+        if (key === "fica verde") entry.greens = lab[2].split(/[,\s]+/).map((s) => s.replace(/`/g, "").replace(/\.$/, "")).filter(Boolean);
+        if (key === "run") entry.run = lab[2];
+        continue;
+      }
+    }
+    entry.text = [entry.title, ...body.map((b) => b.raw.trim())].join(" ").replace(/\s+/g, " ").trim();
+    entry.loopScope = loopPaths(entry.text);
+    const first = entry.loopScope.find((a) => !a.endsWith("/"));
+    entry.kind = first && LOOP_TEST_RE.test(first) ? "teste" : "impl";
+    tasks.push(entry);
+    cur = null;
+  };
+
+  lines.forEach((raw, idx) => {
+    const lineNo = idx + 1;
+    if (raw.trim().startsWith("```")) inFence = !inFence;
+    if (inFence) return;
+
+    if (/^## /.test(raw)) {
+      close();
+      const h = raw.slice(3);
+      groupIsPhase = FASE_RE.test(h);
+      const n = Number((/\d+/.exec(h) ?? ["0"])[0]);
+      group = { n, title: h.replace(FASE_RE, "").trim(), line: lineNo };
+      return;
+    }
+    if (/^#{1,6}\s/.test(raw)) {
+      close();
+      if (/^#{3,}\s/.test(raw) && PLANO_SUB_RE.test(raw.trim())) {
+        issues.push({ level: "error", line: lineNo, message: "Subtítulo de plano de teste: o loop passa a tratar o grupo inteiro como implementação. Escreva os testes como tarefas (CRIA `x.test.ts`)." });
+      }
+      return;
+    }
+    if (PLANO_PAR_RE.test(raw.trim())) {
+      issues.push({ level: "error", line: lineNo, message: `"${raw.trim().slice(0, 40)}…": o loop lê linha que começa com **Teste/**Plano de teste como plano e desliga a separação teste→implementação. Use outro rótulo.` });
+    }
+
+    const tm = TASK_LINE_RE.exec(raw);
+    if (tm && indentOf(raw) < 4) {
+      close();
+      const id = tm[2] ?? "";
+      const entry: TaskEntry = {
+        id: id || `?${lineNo}`,
+        title: tm[3].trim(),
+        done: tm[1].toLowerCase() === "x",
+        line: lineNo,
+        group: group ?? { n: 0, title: "", line: 0 },
+        kind: "impl",
+        files: [],
+        loopScope: [],
+        greens: [],
+        cases: [],
+        text: "",
+      };
+      if (!id) issues.push({ level: "error", line: lineNo, message: "Tarefa sem id. Use `- [ ] N.M título` (ex.: 2.1)." });
+      if (!group || !groupIsPhase) {
+        issues.push({ level: "error", line: lineNo, taskId: entry.id, message: "Tarefa fora de um grupo `## N. Título`: o loop ignora esta tarefa." });
+      }
+      cur = { entry, body: [] };
+      return;
+    }
+
+    if (!cur) return;
+    if (!raw.trim()) return;
+    const ind = indentOf(raw);
+    if (ind >= 4) cur.body.push({ raw, line: lineNo });
+    else if (ind > 0) {
+      issues.push({ level: "error", line: lineNo, taskId: cur.entry.id, message: "Linha com menos de 4 espaços de recuo: o loop descarta. Recue os detalhes da tarefa com 4 espaços." });
+    } else close();
+  });
+  close();
+  return { tasks, issues };
+}
 
 function indentOf(raw: string): number {
   let n = 0;
   for (const ch of raw) {
     if (ch === " ") n += 1;
-    else if (ch === "\t") n += 2;
+    else if (ch === "\t") n += 4;
     else break;
   }
   return n;
 }
 
-/** Builds a forest of bullet nodes, one forest per markdown heading section. */
-function parseBullets(text: string): Array<{ heading?: string; nodes: Node[] }> {
-  const sections: Array<{ heading?: string; nodes: Node[] }> = [{ nodes: [] }];
-  let stack: Node[] = [];
-  let inFence = false;
-  const lines = text.split(/\r?\n/);
-
-  lines.forEach((raw, idx) => {
-    const lineNo = idx + 1;
-    const trimmed = raw.trim();
-    if (trimmed.startsWith("```")) {
-      inFence = !inFence;
-      return;
-    }
-    if (inFence) return;
-
-    const heading = /^#{1,6}\s+(.*)$/.exec(trimmed);
-    if (heading && indentOf(raw) === 0) {
-      sections.push({ heading: heading[1], nodes: [] });
-      stack = [];
-      return;
-    }
-    if (!trimmed) return;
-
-    const bullet = /^[-*+]\s+(.*)$/.exec(trimmed);
-    const indent = indentOf(raw);
-    if (!bullet) {
-      // continuation line: append to the deepest open node
-      const last = stack[stack.length - 1];
-      if (last && indent > last.indent) last.text += " " + trimmed;
-      return;
-    }
-
-    const node: Node = { indent, text: bullet[1].trim(), line: lineNo, children: [] };
-    while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
-    const parent = stack[stack.length - 1];
-    if (parent) parent.children.push(node);
-    else sections[sections.length - 1].nodes.push(node);
-    stack.push(node);
-  });
-
-  return sections;
-}
-
-function label(node: Node): { key: string; rest: string } | undefined {
-  const m = /^\*{0,2}([A-Za-z][A-Za-z ]*?)\*{0,2}\s*:\s*(.*)$/.exec(node.text);
-  if (!m) return undefined;
-  return { key: m[1].trim().toLowerCase(), rest: m[2].trim() };
-}
-
-function findChild(node: Node, key: string): { node: Node; rest: string } | undefined {
-  for (const c of node.children) {
-    const l = label(c);
-    if (l && l.key === key) return { node: c, rest: l.rest };
-  }
-  return undefined;
-}
-
-function backtickPaths(s: string): string[] {
-  return [...s.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim());
-}
-
-function parseFilesDecl(
-  found: { node: Node; rest: string },
-  issues: TasksIssue[],
-  ctx: { taskId?: string; testId?: string }
-): FilesDecl {
-  const { node, rest } = found;
-  if (/^none\b/i.test(rest)) {
-    const reason = rest.replace(/^none\b\s*/i, "").replace(/^\((.*)\)$/, "$1").trim();
-    if (!reason) {
-      issues.push({ level: "warning", line: node.line, ...ctx, message: "`Files: NONE` should state a reason, e.g. `NONE (docs-only review)`." });
-    }
-    return { kind: "none", reason, line: node.line };
-  }
-  const entries: FileEntry[] = [];
-  const inline = rest ? [rest] : [];
-  const candidates = [
-    ...inline.map((t) => ({ text: t, line: node.line })),
-    ...node.children.map((c) => ({ text: c.text, line: c.line })),
-  ];
-  for (const c of candidates) {
-    const m = FILE_RE.exec(c.text);
-    if (!m) {
-      issues.push({
-        level: "error",
-        line: c.line,
-        ...ctx,
-        message: `Invalid file entry "${c.text}". Use: CREATE|MODIFY|DELETE \`path/to/file\` [— note]`,
-      });
-      continue;
-    }
-    const p = m[2].trim().replace(/^\.\//, "");
-    if (GLOB_CHARS.test(p)) {
-      issues.push({ level: "error", line: c.line, ...ctx, message: `File entries must be concrete paths, not globs: \`${p}\`` });
-    }
-    if (p.startsWith("/") || p.includes("..")) {
-      issues.push({ level: "error", line: c.line, ...ctx, message: `Use repo-relative paths: \`${p}\`` });
-    }
-    entries.push({ action: m[1].toUpperCase() as FileAction, path: p, note: m[3]?.trim() || undefined, line: c.line });
-  }
-  if (!entries.length) {
-    issues.push({ level: "error", line: node.line, ...ctx, message: "`Files:` is empty. List entries or use `Files: NONE (reason)`." });
-  }
-  return { kind: "list", entries, line: node.line };
-}
-
-export function parseTasksMd(text: string): { tasks: TaskEntry[]; issues: TasksIssue[] } {
-  const issues: TasksIssue[] = [];
-  const tasks: TaskEntry[] = [];
-
-  for (const section of parseBullets(text)) {
-    for (const node of section.nodes) {
-      const m = TASK_RE.exec(node.text);
-      if (!m) continue;
-      const task: TaskEntry = {
-        id: m[2],
-        title: m[3].trim(),
-        done: m[1].toLowerCase() === "x",
-        line: node.line,
-        section: section.heading,
-        hasLegacyTestPlan: !!findChild(node, "test plan"),
-      };
-      const ctx = { taskId: task.id };
-
-      const files = findChild(node, "files");
-      if (files) task.files = parseFilesDecl(files, issues, ctx);
-
-      const tests = findChild(node, "tests");
-      if (tests) {
-        if (/^none\b/i.test(tests.rest)) {
-          task.tests = {
-            kind: "none",
-            reason: tests.rest.replace(/^none\b\s*/i, "").replace(/^\((.*)\)$/, "$1").trim(),
-            line: tests.node.line,
-          };
-        } else {
-          const items: TaskTest[] = [];
-          for (const tn of tests.node.children) {
-            const tm = TEST_RE.exec(tn.text);
-            if (!tm) {
-              issues.push({ level: "error", line: tn.line, ...ctx, message: `Invalid test item "${tn.text}". Use: - [ ] T${task.id}.a <what it checks>` });
-              continue;
-            }
-            const test: TaskTest = {
-              id: tm[2],
-              title: tm[3].trim(),
-              done: (tm[1] ?? " ").toLowerCase() === "x",
-              line: tn.line,
-              covers: [],
-            };
-            const tctx = { taskId: task.id, testId: test.id };
-            const tf = findChild(tn, "files");
-            if (tf) test.files = parseFilesDecl(tf, issues, tctx);
-            const cov = findChild(tn, "covers");
-            if (cov) test.covers = [...backtickPaths(cov.rest), ...cov.node.children.flatMap((c) => backtickPaths(c.text))];
-            const run = findChild(tn, "run");
-            if (run) test.run = run.rest;
-            const as = findChild(tn, "assert");
-            if (as) test.assert = as.rest;
-            items.push(test);
-          }
-          task.tests = { kind: "list", items, line: tests.node.line };
-        }
-      }
-      tasks.push(task);
-    }
-  }
-
-  return { tasks, issues };
-}
-
-export function isTestFile(p: string): boolean {
-  return TEST_FILE_RE.test(p);
-}
-
 /**
- * Lints tasks.md. `fileExists` (optional) lets the linter check that MODIFY/DELETE
- * targets exist in the repo or are created by an earlier task.
+ * Lints tasks.md against what the loop and the judge will do with it.
+ * `fileExists` lets it check CRIA/ALTERA against the repo.
  */
 export function lintTasksMd(
   text: string,
   opts: { fileExists?: (repoRelativePath: string) => boolean } = {}
 ): { tasks: TaskEntry[]; issues: TasksIssue[] } {
   const { tasks, issues } = parseTasksMd(text);
+  const add = (level: TasksIssue["level"], t: TaskEntry | { line: number; id?: string }, message: string, line?: number) =>
+    issues.push({ level, line: line ?? t.line, taskId: (t as any).id, message });
 
-  if (!tasks.length) {
-    issues.push({ level: "error", line: 1, message: "No tasks found. Tasks look like: `- [ ] 1.1 Title`." });
-  }
+  if (!tasks.length) issues.push({ level: "error", line: 1, message: "Nenhuma tarefa. Formato: `## 1. Grupo` e `- [ ] 1.1 Título`." });
 
-  const seenIds = new Set<string>();
+  const ids = new Set<string>();
   const createdBy = new Map<string, string>();
+  const testTaskIds = new Set(tasks.filter((t) => t.kind === "teste").map((t) => t.id));
+  const hasPkg = opts.fileExists?.("package.json");
 
   for (const t of tasks) {
-    const ctx = { taskId: t.id };
-    if (seenIds.has(t.id)) issues.push({ level: "error", line: t.line, ...ctx, message: `Duplicate task id ${t.id}.` });
-    seenIds.add(t.id);
+    if (ids.has(t.id)) add("error", t, `Id repetido: ${t.id}.`);
+    ids.add(t.id);
 
-    if (!t.files) {
-      issues.push({ level: "error", line: t.line, ...ctx, message: `Task ${t.id} has no \`Files:\` section (list CREATE/MODIFY/DELETE entries, including HTML, CSS and test files).` });
+    if (!t.files.length) {
+      add("error", t, `Tarefa ${t.id} não declara arquivos. Liste cada arquivo que ela cria, altera ou remove (inclusive HTML, CSS e testes).`);
+      continue;
     }
 
-    if (!t.tests) {
-      issues.push({
-        level: "error",
-        line: t.line,
-        ...ctx,
-        message: t.hasLegacyTestPlan
-          ? `Task ${t.id} uses \`Test plan:\`. Replace it with \`Tests:\` where each test lists its own \`Files:\`.`
-          : `Task ${t.id} has no \`Tests:\` section (or \`Tests: NONE (reason)\`).`,
-      });
-    } else if (t.tests.kind === "list" && !t.tests.items.length) {
-      issues.push({ level: "error", line: t.tests.line, ...ctx, message: `Task ${t.id}: \`Tests:\` is empty.` });
-    }
-
-    const taskFiles = t.files?.kind === "list" ? t.files.entries : [];
-    const taskPaths = new Map<string, FileEntry>();
-    for (const e of taskFiles) {
-      if (taskPaths.has(e.path)) {
-        issues.push({ level: "warning", line: e.line, ...ctx, message: `\`${e.path}\` is listed twice in task ${t.id}.` });
+    const declared = new Set(t.files.map((f) => f.path));
+    const seen = new Set<string>();
+    for (const f of t.files) {
+      if (seen.has(f.path)) add("warning", t, `\`${f.path}\` aparece duas vezes.`, f.line);
+      seen.add(f.path);
+      if (/[*?[\]{}]/.test(f.path)) add("error", t, `Caminho concreto, sem glob: \`${f.path}\`.`, f.line);
+      if (f.path.startsWith("/") || f.path.includes("..")) add("error", t, `Caminho relativo à raiz do repo: \`${f.path}\`.`, f.line);
+      if (INFRA_RE.test(f.path) || /^(?:loop|judge)\.mjs$/.test(f.path)) {
+        add("error", t, `\`${f.path}\` é infraestrutura do loop/juiz: nenhuma fase pode tocar.`, f.line);
       }
-      taskPaths.set(e.path, e);
+      if (!loopPathsCover(t.loopScope, f.path)) {
+        add("error", t, `O loop não vai enxergar \`${f.path}\` (extensão fora da lista do loop?). Ele fica fora do escopo da fase e o juiz reprova.`, f.line);
+      }
 
-      if (e.action === "CREATE") {
-        const prev = createdBy.get(e.path);
-        if (prev) {
-          issues.push({ level: "warning", line: e.line, ...ctx, message: `\`${e.path}\` is already created by task ${prev}; use MODIFY here.` });
-        } else if (opts.fileExists?.(e.path)) {
-          issues.push({ level: "warning", line: e.line, ...ctx, message: `\`${e.path}\` already exists in the repo; use MODIFY instead of CREATE.` });
-        }
-      } else if (opts.fileExists && !createdBy.has(e.path) && !opts.fileExists(e.path)) {
-        issues.push({ level: "error", line: e.line, ...ctx, message: `${e.action} \`${e.path}\`: file does not exist and no earlier task creates it.` });
+      if (f.action === "CRIA") {
+        const prev = createdBy.get(f.path);
+        if (prev) add("warning", t, `\`${f.path}\` já é criado na tarefa ${prev}; aqui é ALTERA.`, f.line);
+        else if (opts.fileExists?.(f.path)) add("warning", t, `\`${f.path}\` já existe no repo; use ALTERA.`, f.line);
+      } else if (opts.fileExists && !createdBy.has(f.path) && !opts.fileExists(f.path)) {
+        add("error", t, `${f.action} \`${f.path}\`: o arquivo não existe e nenhuma tarefa anterior o cria.`, f.line);
+      }
+
+      if (isTestFile(f.path) && f.action !== "CRIA") {
+        add("error", t, `${f.action} \`${f.path}\`: o juiz trava testes por hash quando a fase fecha. Crie um arquivo de teste novo em vez de alterar/remover.`, f.line);
       }
     }
-    for (const e of taskFiles) if (e.action === "CREATE" && !createdBy.has(e.path)) createdBy.set(e.path, t.id);
+    for (const f of t.files) if (f.action === "CRIA" && !createdBy.has(f.path)) createdBy.set(f.path, t.id);
 
-    const testFilesUsed = new Set<string>();
-    if (t.tests?.kind === "list") {
-      for (const test of t.tests.items) {
-        const tctx = { taskId: t.id, testId: test.id };
-        if (!test.files) {
-          issues.push({ level: "error", line: test.line, ...tctx, message: `Test ${test.id} has no \`Files:\` (the test file it creates/modifies, or \`Files: NONE (reason)\`).` });
-        } else if (test.files.kind === "list") {
-          for (const e of test.files.entries) {
-            testFilesUsed.add(e.path);
-            if (!taskPaths.has(e.path)) {
-              issues.push({ level: "error", line: e.line, ...tctx, message: `Test ${test.id} touches \`${e.path}\`, which is missing from task ${t.id} \`Files:\`.` });
-            } else if (taskPaths.get(e.path)!.action !== e.action) {
-              issues.push({ level: "warning", line: e.line, ...tctx, message: `Test ${test.id} says ${e.action} \`${e.path}\` but task ${t.id} says ${taskPaths.get(e.path)!.action}.` });
-            }
-          }
-        }
-        if (!test.run) {
-          issues.push({ level: "warning", line: test.line, ...tctx, message: `Test ${test.id} has no \`Run:\` command.` });
-        }
-        for (const c of test.covers) {
-          if (!taskPaths.has(c) && opts.fileExists && !opts.fileExists(c) && !createdBy.has(c)) {
-            issues.push({ level: "warning", line: test.line, ...tctx, message: `Test ${test.id} covers \`${c}\`, which neither exists nor is created by any task.` });
-          }
-        }
-      }
+    // What the loop sees must be exactly what the task declares.
+    const extra = t.loopScope.filter((p) => p !== "*" && !declared.has(p) && !(p.endsWith("/") && [...declared].some((d) => d.startsWith(p))));
+    for (const p of extra) {
+      add("error", t, `O texto cita \`${p}\`, e o loop vai colocá-lo no escopo da fase sem estar declarado. Declare-o ou reescreva sem o caminho (import de teste: use caminho relativo com ../).`);
     }
 
-    for (const e of taskFiles) {
-      if (isTestFile(e.path) && e.action !== "DELETE" && !testFilesUsed.has(e.path)) {
-        issues.push({ level: "warning", line: e.line, ...ctx, message: `Test file \`${e.path}\` is listed in task ${t.id} but no test under \`Tests:\` declares it.` });
+    if (t.kind === "teste") {
+      const first = t.files[0];
+      if (!isTestFile(first.path)) {
+        add("error", t, `Tarefa de teste: o primeiro arquivo precisa ser o teste (*.test|spec.ts|tsx|js|mjs).`, first.line);
       }
+      for (const f of t.files) {
+        if (!isTestFile(f.path) && f.action !== "CRIA") {
+          add("error", t, `Tarefa de teste não altera código: ${f.action} \`${f.path}\`. Isso é implementação; mova para a tarefa de implementação.`, f.line);
+        } else if (!isTestFile(f.path)) {
+          add("warning", t, `\`${f.path}\` numa tarefa de teste: aceito só para fixture/mocks. Código de produção vai na tarefa de implementação.`, f.line);
+        }
+      }
+      if (!t.cases.length) add("warning", t, `Tarefa de teste ${t.id} sem \`- Casos:\` (a 2ª opinião confere um caso por valor esperado).`);
+      if (!t.run) add("warning", t, `Tarefa de teste ${t.id} sem \`- Run:\`.`);
+    } else {
+      for (const f of t.files) {
+        if (isTestFile(f.path)) add("error", t, `Tarefa de implementação cita o teste \`${f.path}\`. O loop classifica pelo primeiro arquivo e trava testes por hash: teste vai numa tarefa de teste própria, antes.`, f.line);
+      }
+      for (const g of t.greens) {
+        if (!testTaskIds.has(g)) add("warning", t, `Fica verde: ${g} não é uma tarefa de teste deste tasks.md.`);
+      }
+    }
+  }
+
+  // Order inside each group: tests before implementation.
+  const byGroup = new Map<string, TaskEntry[]>();
+  for (const t of tasks) {
+    const k = `${t.group.line}`;
+    byGroup.set(k, [...(byGroup.get(k) ?? []), t]);
+  }
+  let groupIdx = 0;
+  for (const list of byGroup.values()) {
+    groupIdx++;
+    const firstImpl = list.findIndex((t) => t.kind === "impl");
+    const lateTest = firstImpl === -1 ? undefined : list.slice(firstImpl).find((t) => t.kind === "teste");
+    if (lateTest) {
+      add("error", lateTest, `Teste ${lateTest.id} depois de implementação no mesmo grupo: ele nasceria verde e o juiz reprova. Coloque as tarefas de teste primeiro.`);
+    }
+    const tests = list.filter((t) => t.kind === "teste");
+    if (tests.length) {
+      for (const t of list.filter((x) => x.kind === "impl")) {
+        if (!t.greens.length) add("warning", t, `Tarefa ${t.id} não diz quais testes ficam verdes (\`- Fica verde: ${tests.map((x) => x.id).join(", ")}\`).`);
+      }
+    }
+    if (groupIdx === 1 && opts.fileExists && !hasPkg && tests.length) {
+      add("warning", tests[0], "Repo sem package.json: o loop trata o grupo 1 como scaffold (escopo total, sem teste antes). Deixe os testes para o grupo 2.");
     }
   }
 
@@ -364,27 +357,39 @@ export function lintTasksMd(
   return { tasks, issues };
 }
 
+function loopPathsCover(scope: string[], p: string): boolean {
+  return scope.includes("*") || scope.includes(p) || scope.some((s) => s.endsWith("/") && p.startsWith(s));
+}
+
 export type FileMapRow = {
   path: string;
-  touches: Array<{ taskId: string; action: FileAction; testIds: string[] }>;
+  touches: Array<{ taskId: string; action: FileAction; kind: TaskKind }>;
 };
 
-/** Reverse index: which tasks (and tests) touch each file, in task order. */
+/** Reverse index: which tasks touch each file, in document order. */
 export function buildFileMap(tasks: TaskEntry[]): FileMapRow[] {
   const map = new Map<string, FileMapRow>();
   for (const t of tasks) {
-    if (t.files?.kind !== "list") continue;
-    for (const e of t.files.entries) {
-      const row = map.get(e.path) ?? { path: e.path, touches: [] };
-      const testIds =
-        t.tests?.kind === "list"
-          ? t.tests.items
-              .filter((x) => x.files?.kind === "list" && x.files.entries.some((f) => f.path === e.path))
-              .map((x) => x.id)
-          : [];
-      row.touches.push({ taskId: t.id, action: e.action, testIds });
-      map.set(e.path, row);
+    for (const f of t.files) {
+      const row = map.get(f.path) ?? { path: f.path, touches: [] };
+      row.touches.push({ taskId: t.id, action: f.action, kind: t.kind });
+      map.set(f.path, row);
     }
   }
   return [...map.values()].sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** The phases the loop will run: consecutive tasks of the same kind inside a group. */
+export function loopPhases(tasks: TaskEntry[]): Array<{ group: string; kind: TaskKind; taskIds: string[]; scope: string[] }> {
+  const out: Array<{ group: string; kind: TaskKind; taskIds: string[]; scope: string[]; key: number }> = [];
+  for (const t of tasks) {
+    const last = out[out.length - 1];
+    if (last && last.key === t.group.line && last.kind === t.kind) {
+      last.taskIds.push(t.id);
+      last.scope = [...new Set([...last.scope, ...t.loopScope])];
+    } else {
+      out.push({ group: `${t.group.n}. ${t.group.title}`, kind: t.kind, taskIds: [t.id], scope: [...t.loopScope], key: t.group.line });
+    }
+  }
+  return out.map(({ key: _k, ...rest }) => rest);
 }

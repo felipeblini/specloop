@@ -1,6 +1,6 @@
 # Project Context: ralphy-spec
 
-ralphy-spec is a CLI tool that combines OpenSpec (spec-driven development) with Ralph Loop (iterative AI execution) for predictable AI-assisted coding with Claude Code (Claude-only fork of ralphy-spec).
+specloop (fork of ralphy-spec) is a CLI tool that combines OpenSpec (spec-driven development) with Ralph Loop (iterative AI execution) for predictable AI-assisted coding with Claude Code (Claude-only fork of ralphy-spec).
 
 ## Stack
 - Language: TypeScript
@@ -21,7 +21,7 @@ ralphy-spec is a CLI tool that combines OpenSpec (spec-driven development) with 
 - **Engine** (`src/core/engine/`) - Loop state machine, repair logic, context packing
 - **Spec Loader** (`src/core/spec/`) - Zod schemas, DAG builder, file contracts
 - **Backends** (`src/core/backends/`) - ClaudeCode adapter (+ noop)
-- **tasks.md** (`src/core/spec/tasks-md.ts`, `src/core/spec/tasks-sync.ts`) - per-task/per-test file declarations: lint, file map, sync to project.yml
+- **tasks.md** (`src/core/spec/tasks-md.ts`) - loop-ready format: files declared per task, test tasks before impl; lint mirrors loop.mjs/judge.mjs parsing
 - **Validators** (`src/core/validators/`) - Runner + parsers (tsc, eslint, jest)
 - **Budgets** (`src/core/budgets/`) - Tier tracking, degrade mode
 - **Memory** (`src/core/memory/`) - SQLite persistence, ledger logging

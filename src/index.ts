@@ -14,11 +14,11 @@ function buildProgram(): Command {
   const program = new Command();
 
   program
-    .name("ralphy-spec")
+    .name("specloop")
     .description(
-      "One-command setup for Ralph loop + OpenSpec workflows for Claude Code."
+      "OpenSpec planning for Claude Code, with tasks.md ready for the external loop (loop.mjs + judge.mjs)."
     )
-    .version("0.4.0");
+    .version("0.5.0");
 
   registerInitCommand(program);
   registerValidateCommand(program);

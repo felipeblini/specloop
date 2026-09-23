@@ -1,145 +1,103 @@
-# ralphy-spec (Claude Code edition)
+# specloop
 
-**Spec-driven AI development with iterative execution, for Claude Code only.** Combines OpenSpec + Ralph Loop, with a `tasks.md` in which every task and every test states exactly which files it creates, modifies or deletes — including HTML, CSS and test files.
+Planejamento OpenSpec para Claude Code, com um `tasks.md` pronto para o loop externo (`loop.mjs` + `judge.mjs`). Cada tarefa declara os arquivos que cria, altera ou remove — HTML, CSS e testes inclusive — e cada teste é uma tarefa própria, antes da implementação.
 
-Fork of [wenqingyu/ralphy-openspec](https://github.com/wenqingyu/ralphy-openspec) 0.3.6 (commit `0c1cf7a`). Cursor and OpenCode support were removed. See [CHANGELOG](CHANGELOG.md).
+Fork de [wenqingyu/ralphy-openspec](https://github.com/wenqingyu/ralphy-openspec) 0.3.6 (commit `0c1cf7a`). Veja o [CHANGELOG](CHANGELOG.md).
 
-## Install
+## Fluxo
 
-Not published to npm. From this folder:
+```
+/specloop-plan  →  commit  →  node loop.mjs (terminal)  →  /specloop-validate  →  /specloop-archive
+   (sessão)                     (fora da sessão)               (sessão)                (sessão)
+```
+
+A implementação não acontece dentro do Claude Code: ela roda no terminal pelo `loop.mjs`, fase a fase, com o `judge.mjs` como árbitro. Os dois ficam fora do projeto (ex.: `C:\dev\loop-kit\`).
+
+## Instalação
+
+Fora do npm. Nesta pasta:
 
 ```bash
 npm install
 npm run build
-npm install -g .        # or: sh scripts/install.sh
+npm install -g .        # ou: sh scripts/install.sh
 ```
 
-Then, in your project:
+No projeto:
 
 ```bash
-ralphy-spec init
+specloop init
 ```
 
-This creates `.claude/commands/ralphy-*.md`, `openspec/` and `ralphy-spec/`.
+Cria `.claude/commands/specloop-*.md`, `openspec/` e, se não existir, `CLAUDE.md` com a seção `## Comandos` preenchida a partir dos scripts do `package.json` (o `loop.mjs` exige o `CLAUDE.md`; o `judge.mjs` roda esses comandos). `specloop update` atualiza os comandos e apaga os antigos `ralphy-*.md`.
 
-## Claude Code commands
+## Comandos do Claude Code
 
-| Command | What it does |
-|---------|--------------|
-| `/ralphy-plan` | Create specs + `tasks.md` (with files per task and per test) from requirements |
-| `/ralphy-implement` | Build with iterative loop, touching only declared files |
-| `/ralphy-validate` | Verify acceptance criteria + audit changed files vs declared files |
-| `/ralphy-archive` | Complete and archive |
+| Comando | O que faz |
+|---------|-----------|
+| `/specloop-plan` | Requisitos → proposal, spec deltas, `tasks.md` no formato do loop e `## Comandos` do `CLAUDE.md` |
+| `/specloop-validate` | Depois do loop: relatório, juiz manual, auditoria dos arquivos alterados contra os declarados |
+| `/specloop-archive` | Arquiva a change concluída |
 
-## tasks.md format
+## Formato do tasks.md
 
 ```markdown
-- [ ] 2.1 Render the prize card on the home screen
-  - Files:
-    - CREATE `src/components/PrizeCard.vue`
-    - CREATE `src/styles/prize-card.css`
-    - MODIFY `index.html` — preload the display font
-    - CREATE `tests/unit/PrizeCard.test.ts`
-  - Acceptance criteria:
-    - GIVEN a prize WHEN the home renders THEN the card shows image and name
-  - Tests:
-    - [ ] T2.1.a renders the prize name and image
-      - Files:
-        - CREATE `tests/unit/PrizeCard.test.ts`
-      - Covers: `src/components/PrizeCard.vue`
-      - Run: `npm test -- PrizeCard`
-      - Assert: name text and `<img src>` match the props
+## 1. Card do brinde
+
+**Goal**: mostrar cada brinde cadastrado como um card na home
+
+- [ ] 1.1 Testes do card do brinde
+    - CRIA `tests/unit/prize-card.test.ts`
+    - Casos:
+        - mostra o nome recebido: nome "Caneca" → texto "Caneca" no card
+    - Import: `import PrizeCard from '../../src/components/PrizeCard.vue'`
+    - Run: `npx vitest run tests/unit/prize-card.test.ts`
+- [ ] 1.2 Componente do card do brinde
+    - CRIA `src/components/PrizeCard.vue`
+    - CRIA `src/styles/prize-card.css`
+    - ALTERA `index.html` — preload da fonte do título
+    - Fica verde: 1.1
 ```
 
-Rules (enforced by `ralphy-spec tasks check`):
+O loop transforma isso em duas fases: `[teste] tests/unit/prize-card.test.ts` e depois `[impl] src/components/PrizeCard.vue, src/styles/prize-card.css, index.html`. O escopo de cada fase é exatamente o que a tarefa declara.
 
-- Every task has `Files:` (or `Files: NONE (reason)`) and `Tests:` (or `Tests: NONE (reason)`).
-- Entries are `CREATE|MODIFY|DELETE` + a backticked, concrete, repo-relative path. No globs.
-- `CREATE` only for files that don't exist yet and aren't created by an earlier task; `MODIFY`/`DELETE` only for files that exist or were created earlier.
-- Every test has its own `Files:`; any test file it lists must also be in the task's `Files:`.
-- Test files listed in a task must be claimed by some test (warning).
+Regras (conferidas por `specloop tasks check`):
 
-Full template: [`src/templates/shared/openspec-tasks-template.md`](src/templates/shared/openspec-tasks-template.md).
+- Grupos `## N. Título`; tarefas `- [ ] N.M`; detalhes recuados 4 espaços, sem caixa aninhada.
+- Toda tarefa declara arquivos: `CRIA`/`ALTERA`/`REMOVE` + caminho concreto entre crases (`CREATE`/`MODIFY`/`DELETE` também valem).
+- Nenhum caminho não declarado no texto da tarefa: o loop o poria no escopo da fase.
+- Tarefa de teste: primeiro arquivo é `*.test|spec.ts|tsx|js|mjs`, só CRIA, lista `Casos` e `Run`; o alvo aparece só no `Import`, com `../`.
+- Tarefa de implementação: não cita teste; diz `Fica verde: <ids>`.
+- No grupo, testes antes da implementação. Teste nunca é ALTERA/REMOVE (o juiz trava por hash).
+- Sem `**Plano de teste**`, `**Teste…` ou `### … teste antes …` (o loop desliga a separação teste → impl).
+- Repo sem `package.json`: grupo 1 é o scaffold, sem teste.
+
+Modelo completo: [`src/templates/shared/openspec-tasks-template.md`](src/templates/shared/openspec-tasks-template.md).
 
 ## CLI
 
 ```bash
-ralphy-spec tasks check [change]          # lint tasks.md (--strict, --json)
-ralphy-spec tasks files [change]          # files per task/test (--by-file, --json)
-ralphy-spec tasks sync [change]           # tasks.md -> openspec/project.yml with files_contract
-ralphy-spec run --dry-run
-ralphy-spec run                           # backend: claude-code
-ralphy-spec status
-ralphy-spec budget --json
+specloop tasks check [change]            # valida contra o que o loop e o juiz fazem (--strict, --json)
+specloop tasks files [change]            # arquivos por tarefa
+specloop tasks files [change] --by-file  # quais tarefas tocam cada arquivo
+specloop tasks files [change] --fases    # as fases que o loop.mjs vai rodar (igual ao loop.mjs --listar)
+specloop validate                        # confere a instalação no projeto
 ```
 
-`[change]` can be omitted when there is only one change under `openspec/changes/`.
+`[change]` é opcional quando só há uma change em `openspec/changes/`.
 
-`tasks sync` turns each pending task into an engine task whose `files_contract.allowed` is exactly its declared files (plus the change's `tasks.md`), chained in document order. `ralphy-spec run` then reverts the workspace if Claude modifies a file outside that list.
+`specloop tasks check` replica a leitura do `loop.mjs` (grupos, recuo, extração de caminhos, tipo teste/impl) e as regras do `judge.mjs` (padrão de arquivo de teste, trava por hash, infraestrutura). Se você mudar o parser do loop, atualize `src/core/spec/tasks-md.ts` — os espelhos estão marcados no topo do arquivo.
 
-Logs & artifacts (during/after runs):
-- `ralphy-spec/STATUS.md`: live status (primary)
-- `ralphy-spec/TASKS.md`: task board, now with each task's declared files
-- `ralphy-spec/runs/<runId>.md`: run log (immutable on completion)
-- `ralphy-spec/logs/<runId>/...`: backend transcripts
+## Motor interno (legado)
 
-## Example workflow
+O motor do ralphy-spec (`specloop run`, `status`, `budget`, `report`, `tail`, `checkpoint`, pasta `ralphy-spec/`, `openspec/project.yml`) continua no código, com backend `claude-code`. Ele não é usado neste fluxo: o loop é o `loop.mjs`.
 
-```bash
-You: /ralphy-plan Add a prize card to the home screen
-#   -> openspec/changes/add-prize-card/{proposal.md,tasks.md,specs/...}
-#   -> runs `ralphy-spec tasks check add-prize-card` until clean
+## Créditos
 
-ralphy-spec tasks files add-prize-card --by-file   # review what will be touched
+- **[ralphy-openspec](https://github.com/wenqingyu/ralphy-openspec)** por Wenqing Yu (upstream)
+- **[Ralph Methodology](https://ghuntley.com/ralph)** por Geoffrey Huntley
+- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** por Fission-AI
 
-You: /ralphy-implement add-prize-card
-#   or, headless: ralphy-spec tasks sync && ralphy-spec run
+## Licença
 
-You: /ralphy-validate
-You: /ralphy-archive add-prize-card
-```
-
-## What gets created
-
-```
-.claude/commands/
-├── ralphy-plan.md
-├── ralphy-implement.md
-├── ralphy-validate.md
-└── ralphy-archive.md
-
-openspec/
-├── specs/                # Source of truth
-├── changes/              # Active work
-├── archive/              # Completed
-├── project.md            # Context
-└── project.yml           # Engine config + tasks (backend: claude-code)
-
-ralphy-spec/              # Local state + artifacts
-├── state.db
-├── STATUS.md
-├── TASKS.md
-├── BUDGET.md
-├── runs/
-├── logs/
-├── worktrees/
-└── tasks/<taskId>/{CONTEXT,REPAIR,NOTES}.md
-```
-
-## How it works
-
-**Ralph Wiggum Loop:** AI receives the same prompt repeatedly until task completion. Each iteration, it sees previous work in files and self-corrects.
-
-**OpenSpec:** Specs before code. Structured specifications with acceptance criteria ensure AI knows exactly what to build.
-
-**File declarations:** the plan fixes which files each task and test touches, so the implementation step (and the engine's file contract) can hold Claude to it.
-
-## Credits
-
-- **[ralphy-openspec](https://github.com/wenqingyu/ralphy-openspec)** by Wenqing Yu (upstream)
-- **[Ralph Methodology](https://ghuntley.com/ralph)** by Geoffrey Huntley
-- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** by Fission-AI
-
-## License
-
-BSD-3-Clause (upstream license retained in [LICENSE](LICENSE)).
+BSD-3-Clause (licença do upstream mantida em [LICENSE](LICENSE)).
