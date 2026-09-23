@@ -1,9 +1,12 @@
 {
-  "name": "specloop",
+  "name": "specloop-ralph",
   "version": "0.7.0",
   "description": "OpenSpec planning for Claude Code: tasks.md where every task and test declares its files, ready for an external loop (loop.mjs + judge.mjs).",
   "license": "BSD-3-Clause",
-  "author": "Wenqing Yu",
+  "author": "Felipe Blini",
+  "contributors": [
+    "Wenqing Yu (ralphy-openspec, upstream)"
+  ],
   "keywords": [
     "openspec",
     "ai",
