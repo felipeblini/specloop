@@ -3,6 +3,7 @@ import { registerInitCommand } from "./cli/init";
 import { registerValidateCommand } from "./cli/validate";
 import { registerUpdateCommand } from "./cli/update";
 import { registerTasksCommand } from "./cli/tasks";
+import { registerPhasesCommand } from "./cli/phases";
 
 function buildProgram(): Command {
   const program = new Command();
@@ -10,14 +11,15 @@ function buildProgram(): Command {
   program
     .name("specloop")
     .description(
-      "OpenSpec planning for Claude Code, with tasks.md ready for the external loop (loop.mjs + judge.mjs)."
+      "OpenSpec planning for Claude Code, with phases.md ready for the external loop (ralph-loop.mjs + judge.mjs)."
     )
-    .version("0.6.0");
+    .version("0.7.0");
 
   registerInitCommand(program);
   registerUpdateCommand(program);
   registerValidateCommand(program);
   registerTasksCommand(program);
+  registerPhasesCommand(program);
 
   return program;
 }

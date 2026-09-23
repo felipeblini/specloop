@@ -117,6 +117,6 @@ export async function installToolTemplates(
     }
   }
 
-  // CLAUDE.md: required by loop.mjs (preflight) and read by judge.mjs (## Comandos).
+  // CLAUDE.md: required by ralph-loop.mjs (preflight) and read by judge.mjs (## Comandos).
   await writeFileIfMissing(path.join(projectDir, "CLAUDE.md"), await buildClaudeMd(projectDir));
 }

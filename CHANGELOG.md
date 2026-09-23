@@ -125,3 +125,15 @@ Renomeado para **specloop**. A implementação sai da sessão: roda no terminal 
 ### Fixed
 - `scripts/clean.mjs` apagava `../dist` (um nível acima do repo) em vez de `dist/`; o build deixava templates antigos em `dist/`.
 
+## [0.7.0] - 2026-09-23
+
+### Added
+- `specloop phases [change] [--max-fases N]`: grava `openspec/changes/<change>/phases.md`, uma seção `## Phase N:` por sessão do loop com `<!-- loop: {tipo, arquivos, tarefas} -->` e o sha256 do `tasks.md` de origem. Não gera com ERRO no `tasks check`.
+
+### Changed
+- O loop externo se chama `ralph-loop.mjs` e lê o `phases.md` no lugar do `tasks.md`.
+### Fixed
+- `npm run build` no Windows não copiava `src/templates/` para `dist/` (`URL.pathname` vira `/C:/...`; o erro era engolido) e o `specloop init` quebrava com ENOENT. `clean.mjs` tinha o mesmo defeito.
+
+### Changed (cont.)
+- Templates chamam `specloop` direto em vez de `npx specloop` (o pacote não está no npm; `npx` baixaria outro com o mesmo nome).

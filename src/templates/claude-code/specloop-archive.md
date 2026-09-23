@@ -13,4 +13,4 @@
 4. Confira que `openspec/specs/` ficou atualizado.
 
 ## Saída
-Resumo curto do que mudou, a lista final de arquivos (`npx specloop tasks files <change> --by-file`) e como testar.
+Resumo curto do que mudou, a lista final de arquivos (`specloop tasks files <change> --by-file`) e como testar.

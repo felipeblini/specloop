@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 async function copyDir(srcDir, dstDir) {
   await fs.mkdir(dstDir, { recursive: true });
@@ -16,7 +17,8 @@ async function copyDir(srcDir, dstDir) {
   }
 }
 
-const scriptsDir = path.dirname(new URL(import.meta.url).pathname);
+// fileURLToPath, não `.pathname`: no Windows o pathname é "/C:/..." e o caminho sai errado.
+const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptsDir, "..");
 const srcTemplates = path.join(root, "src", "templates");
 const dstTemplates = path.join(root, "dist", "templates");

@@ -41,7 +41,7 @@ export async function validateProject(
   }
 
   if (!(await exists(path.join(projectDir, "CLAUDE.md"))) && !(await exists(path.join(projectDir, "AGENTS.md")))) {
-    issues.push({ level: "error", message: "Missing CLAUDE.md (loop.mjs preflight requires it; judge.mjs reads ## Comandos from it). Run `specloop init`.", path: "CLAUDE.md" });
+    issues.push({ level: "error", message: "Missing CLAUDE.md (ralph-loop.mjs preflight requires it; judge.mjs reads ## Comandos from it). Run `specloop init`.", path: "CLAUDE.md" });
   }
 
   return issues;

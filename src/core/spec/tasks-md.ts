@@ -1,6 +1,6 @@
 /**
  * Parser + linter for `openspec/changes/<change>/tasks.md`, shaped for the external
- * loop (loop.mjs + judge.mjs). The loop reads tasks.md like this:
+ * loop (ralph-loop.mjs + judge.mjs). The loop reads tasks.md like this:
  *
  *   - groups are `## N. Title` (also `## Phase N:`, `## Fase N:`, `## Etapa N —`);
  *     tasks under any other `##` heading are silently ignored
@@ -46,7 +46,7 @@ export type TaskEntry = {
   title: string;
   done: boolean;
   line: number;
-  group: { n: number; title: string; line: number };
+  group: { n: number; title: string; line: number; goal?: string };
   kind: TaskKind;
   files: FileEntry[];
   /** Paths the loop will extract from this task's text (its phase scope). */
@@ -55,6 +55,8 @@ export type TaskEntry = {
   cases: string[];
   run?: string;
   text: string;
+  /** The task as written: its `- [ ]` line and the indented detail lines. */
+  raw: string[];
 };
 
 export type TasksIssue = {
@@ -64,21 +66,21 @@ export type TasksIssue = {
   message: string;
 };
 
-// ─── Mirrors of loop.mjs / judge.mjs (keep in sync when the loop changes) ─────
+// ─── Mirrors of ralph-loop.mjs / judge.mjs (keep in sync when the loop changes) ─────
 const EXT = /\.(?:[cm]?[jt]sx?|json|ya?ml|css|scss|vue|html|md|txt|svg|png|csv)$/i;
 const SOLTO_RE = /(?:^|[\s("'])((?:[\w.@-]+\/)+[\w.@-]+\.\w{1,5})(?=$|[\s,;:)"'.])/g;
 const SPEC_RE = /^(?:openspec|specs|\.specify|\.spec)\//;
-const INFRA_RE = /^(?:design\/|openspec\/|specs\/|\.specify\/|\.spec\/|judge\.mjs$|loop\.mjs$|CLAUDE\.md$|AGENTS\.md$)/;
+const INFRA_RE = /^(?:design\/|openspec\/|specs\/|\.specify\/|\.spec\/|judge\.mjs$|(?:ralph-)?loop\.mjs$|CLAUDE\.md$|AGENTS\.md$)/;
 const FASE_RE = /^(?:(?:Phase|Fase|Etapa|Step)\s+\d+\s*[:—–-]?|\d+\.)\s*/i;
 const TASK_LINE_RE = /^\s*-\s*\[\s*([ xX]?)\s*\]\s*(?:(T\d+|\d+\.\d+)\s+)?(.*)$/;
-/** loop.mjs decides task kind with this. */
+/** ralph-loop.mjs decides task kind with this. */
 const LOOP_TEST_RE = /\.(test|spec)\.[cm]?[jt]sx?$/;
 /** judge.mjs only collects/locks these; a test file must match it. */
 const JUDGE_TEST_RE = /\.(test|spec)\.(ts|tsx|js|mjs)$/;
 const PLANO_SUB_RE = /^#{3,}[^\n]*(?:\btest\w*\b[^\n]*\bantes\b|\btests?\b[^\n]*\bbefore\b|plano de testes?|test plan)/i;
 const PLANO_PAR_RE = /^\*\*(?:plano de testes?|test plan|testes?|tests?)\b/i;
 
-/** Same extraction as loop.mjs `caminhos()`: what the loop treats as phase scope. */
+/** Same extraction as ralph-loop.mjs `caminhos()`: what the loop treats as phase scope. */
 export function loopPaths(texto: string): string[] {
   const out: string[] = [];
   for (const m of texto.matchAll(/`([^`\s]+)`/g)) {
@@ -164,6 +166,7 @@ export function parseTasksMd(text: string): { tasks: TaskEntry[]; issues: TasksI
       }
     }
     entry.text = [entry.title, ...body.map((b) => b.raw.trim())].join(" ").replace(/\s+/g, " ").trim();
+    entry.raw = [`- [ ] ${entry.id} ${entry.title}`, ...body.map((b) => b.raw.replace(/\s+$/, ""))];
     entry.loopScope = loopPaths(entry.text);
     const first = entry.loopScope.find((a) => !a.endsWith("/"));
     entry.kind = first && LOOP_TEST_RE.test(first) ? "teste" : "impl";
@@ -191,6 +194,8 @@ export function parseTasksMd(text: string): { tasks: TaskEntry[]; issues: TasksI
       }
       return;
     }
+    const goal = /^\*\*Goal\*\*:\s*(.*)$/.exec(raw.trim());
+    if (goal && group && !cur) (group as TaskEntry["group"]).goal = goal[1].trim();
     if (PLANO_PAR_RE.test(raw.trim())) {
       issues.push({ level: "error", line: lineNo, message: `"${raw.trim().slice(0, 40)}…": o loop lê linha que começa com **Teste/**Plano de teste como plano e desliga a separação teste→implementação. Use outro rótulo.` });
     }
@@ -211,6 +216,7 @@ export function parseTasksMd(text: string): { tasks: TaskEntry[]; issues: TasksI
         greens: [],
         cases: [],
         text: "",
+        raw: [],
       };
       if (!id) issues.push({ level: "error", line: lineNo, message: "Tarefa sem id. Use `- [ ] N.M título` (ex.: 2.1)." });
       if (!group || !groupIsPhase) {
@@ -277,7 +283,7 @@ export function lintTasksMd(
       seen.add(f.path);
       if (/[*?[\]{}]/.test(f.path)) add("error", t, `Caminho concreto, sem glob: \`${f.path}\`.`, f.line);
       if (f.path.startsWith("/") || f.path.includes("..")) add("error", t, `Caminho relativo à raiz do repo: \`${f.path}\`.`, f.line);
-      if (INFRA_RE.test(f.path) || /^(?:loop|judge)\.mjs$/.test(f.path)) {
+      if (INFRA_RE.test(f.path) || /^(?:(?:ralph-)?loop|judge)\.mjs$/.test(f.path)) {
         add("error", t, `\`${f.path}\` é infraestrutura do loop/juiz: nenhuma fase pode tocar.`, f.line);
       }
       if (!loopPathsCover(t.loopScope, f.path)) {

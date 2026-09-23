@@ -5,7 +5,7 @@ import path from "node:path";
 import { resolveProjectDir } from "../utils/paths";
 import { buildFileMap, lintTasksMd, loopPhases, type TasksIssue } from "../core/spec/tasks-md";
 
-async function resolveChange(dir: string, change?: string): Promise<string> {
+export async function resolveChange(dir: string, change?: string): Promise<string> {
   if (change) return change;
   const changesDir = path.join(dir, "openspec", "changes");
   let names: string[] = [];
@@ -22,7 +22,7 @@ async function resolveChange(dir: string, change?: string): Promise<string> {
   throw new Error(`Mais de uma change (${names.join(", ")}). Informe o nome.`);
 }
 
-async function loadTasks(dir: string, change: string) {
+export async function loadTasks(dir: string, change: string) {
   const file = path.join(dir, "openspec", "changes", change, "tasks.md");
   let text: string;
   try {
@@ -34,11 +34,11 @@ async function loadTasks(dir: string, change: string) {
   return { file, ...result };
 }
 
-function formatIssue(rel: string, i: TasksIssue): string {
+export function formatIssue(rel: string, i: TasksIssue): string {
   return `${i.level === "error" ? "ERRO" : "AVISO"} ${rel}:${i.line}${i.taskId ? ` (tarefa ${i.taskId})` : ""}: ${i.message}`;
 }
 
-function fail(e: any) {
+export function fail(e: any) {
   process.stderr.write((e?.message ? String(e.message) : String(e)) + "\n");
   process.exitCode = 4;
 }
@@ -50,7 +50,7 @@ export function registerTasksCommand(program: Command): void {
 
   tasks
     .command("check [change]")
-    .description("Valida o tasks.md contra o que o loop.mjs e o judge.mjs vão fazer com ele")
+    .description("Valida o tasks.md contra o que o ralph-loop.mjs e o judge.mjs vão fazer com ele")
     .option("--dir <path>", "Diretório do projeto (padrão: atual)")
     .option("--strict", "Avisos também reprovam", false)
     .option("--json", "Saída em JSON", false)

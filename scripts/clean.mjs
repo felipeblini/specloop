@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 async function rmIfExists(p) {
   try {
@@ -10,6 +11,6 @@ async function rmIfExists(p) {
 }
 
 // scripts/ -> repo root (upstream went one level too far and removed ../dist)
-const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const root = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 await rmIfExists(path.join(root, "dist"));
 
