@@ -80,7 +80,8 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist/ é versionado: `npm install -g github:...` não compila (o npm não expõe o tsc
+# ao prepare de dependência git global). Rode `npm run build` antes de commitar.
 
 # Gatsby files
 .cache/

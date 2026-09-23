@@ -19,7 +19,7 @@ A implementação não acontece dentro do Claude Code: ela roda no terminal pelo
 
 ## Instalação
 
-Fora do npm, direto do GitHub (o `prepare` compila na instalação):
+Fora do npm, direto do GitHub (o `dist/` compilado vai no repositório; mudou o código, `npm run build` antes do commit):
 
 ```bash
 npm install -g github:felipeblini/specloop
