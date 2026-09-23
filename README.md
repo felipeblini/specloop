@@ -4,6 +4,10 @@ Planejamento OpenSpec para Claude Code, com um `tasks.md` pronto para o loop ext
 
 Fork de [wenqingyu/ralphy-openspec](https://github.com/wenqingyu/ralphy-openspec) 0.3.6 (commit `0c1cf7a`). Veja o [CHANGELOG](CHANGELOG.md).
 
+## OpenSpec
+
+O specloop usa o **formato** do OpenSpec — `openspec/specs/` como fonte da verdade, uma pasta por change em `openspec/changes/<change>/` com `proposal.md`, spec deltas (`## ADDED/MODIFIED/REMOVED Requirements`, `#### Scenario:`) e `tasks.md`. Quem escreve esses arquivos é o Claude, seguindo o `/specloop-plan`. O CLI do OpenSpec (`npm i -g @fission-ai/openspec`) é opcional: se estiver instalado, o plan roda `openspec validate --strict` e o archive usa `openspec archive`.
+
 ## Fluxo
 
 ```
@@ -29,7 +33,7 @@ No projeto:
 specloop init
 ```
 
-Cria `.claude/commands/specloop-*.md`, `openspec/` e, se não existir, `CLAUDE.md` com a seção `## Comandos` preenchida a partir dos scripts do `package.json` (o `loop.mjs` exige o `CLAUDE.md`; o `judge.mjs` roda esses comandos). `specloop update` atualiza os comandos e apaga os antigos `ralphy-*.md`.
+Cria `.claude/commands/specloop-*.md`, `openspec/` (`specs/`, `changes/`, `changes/archive/`, `project.md`) e, se não existir, `CLAUDE.md` com a seção `## Comandos` preenchida a partir dos scripts do `package.json` (o `loop.mjs` exige o `CLAUDE.md`; o `judge.mjs` roda esses comandos). `specloop update` atualiza os comandos e apaga os antigos `ralphy-*.md`.
 
 ## Comandos do Claude Code
 
@@ -87,10 +91,6 @@ specloop validate                        # confere a instalação no projeto
 `[change]` é opcional quando só há uma change em `openspec/changes/`.
 
 `specloop tasks check` replica a leitura do `loop.mjs` (grupos, recuo, extração de caminhos, tipo teste/impl) e as regras do `judge.mjs` (padrão de arquivo de teste, trava por hash, infraestrutura). Se você mudar o parser do loop, atualize `src/core/spec/tasks-md.ts` — os espelhos estão marcados no topo do arquivo.
-
-## Motor interno (legado)
-
-O motor do ralphy-spec (`specloop run`, `status`, `budget`, `report`, `tail`, `checkpoint`, pasta `ralphy-spec/`, `openspec/project.yml`) continua no código, com backend `claude-code`. Ele não é usado neste fluxo: o loop é o `loop.mjs`.
 
 ## Créditos
 

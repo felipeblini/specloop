@@ -109,3 +109,19 @@ Renomeado para **specloop**. A implementação sai da sessão: roda no terminal 
 - `tasks sync` e o modelo de prompt do Ralph loop.
 - `openspec/changes/add-cli-plan-command` (plano inacabado do upstream).
 
+## [0.6.0] - 2026-09-22
+
+### Removed
+- Motor interno do ralphy-spec: `run`, `status`, `budget`, `report`, `tail`, `checkpoint`, backends, workspaces, validators, budgets, SQLite, pasta `ralphy-spec/` e `openspec/project.yml`. O loop é o `loop.mjs`.
+- Dependências: better-sqlite3, chalk, cli-table3, execa, fast-glob, inquirer, minimatch, ora, yaml, zod.
+- `openspec/archive/` do upstream (specs do motor removido).
+
+### Changed (cont.)
+- Changes arquivadas vão para `openspec/changes/archive/AAAA-MM-DD-<change>/`, como no CLI do OpenSpec (o upstream usava `openspec/archive/`). O `loop.mjs` já ignora `changes/archive`.
+
+### Changed
+- `/specloop-plan` roda `openspec validate --strict` quando o CLI do OpenSpec está instalado.
+
+### Fixed
+- `scripts/clean.mjs` apagava `../dist` (um nível acima do repo) em vez de `dist/`; o build deixava templates antigos em `dist/`.
+

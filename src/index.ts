@@ -2,12 +2,6 @@ import { Command } from "commander";
 import { registerInitCommand } from "./cli/init";
 import { registerValidateCommand } from "./cli/validate";
 import { registerUpdateCommand } from "./cli/update";
-import { registerRunCommand } from "./cli/run";
-import { registerStatusCommand } from "./cli/status";
-import { registerReportCommand } from "./cli/report";
-import { registerTailCommand } from "./cli/tail";
-import { registerCheckpointCommand } from "./cli/checkpoint";
-import { registerBudgetCommand } from "./cli/budget";
 import { registerTasksCommand } from "./cli/tasks";
 
 function buildProgram(): Command {
@@ -18,17 +12,11 @@ function buildProgram(): Command {
     .description(
       "OpenSpec planning for Claude Code, with tasks.md ready for the external loop (loop.mjs + judge.mjs)."
     )
-    .version("0.5.0");
+    .version("0.6.0");
 
   registerInitCommand(program);
-  registerValidateCommand(program);
   registerUpdateCommand(program);
-  registerRunCommand(program);
-  registerStatusCommand(program);
-  registerBudgetCommand(program);
-  registerReportCommand(program);
-  registerTailCommand(program);
-  registerCheckpointCommand(program);
+  registerValidateCommand(program);
   registerTasksCommand(program);
 
   return program;
@@ -41,4 +29,3 @@ async function main() {
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
 main();
-

@@ -1,54 +1,20 @@
-# Project Context: ralphy-spec
+# Project Context: specloop
 
-specloop (fork of ralphy-spec) is a CLI tool that combines OpenSpec (spec-driven development) with Ralph Loop (iterative AI execution) for predictable AI-assisted coding with Claude Code (Claude-only fork of ralphy-spec).
+specloop (fork of ralphy-spec 0.3.6) prepares OpenSpec changes for Claude Code: `/specloop-plan` writes proposal, spec deltas and a `tasks.md` that an external loop (`loop.mjs` + `judge.mjs`, kept outside this repo) executes phase by phase. Implementation never happens inside the Claude Code session.
 
 ## Stack
-- Language: TypeScript
+- Language: TypeScript (strict), CommonJS output via tsc
 - Runtime: Node.js >= 20.19.0
 - Package manager: npm
-- Build: tsc (TypeScript compiler)
-- Database: better-sqlite3 (persistence)
-- Schema validation: zod
+- Dependencies: commander, fs-extra
+- Tests: Vitest (`npm test`), typecheck: `npm run typecheck`
 
-## Architecture (v2)
-- CLI framework: commander
-- Self-correcting execution engine with budget tracking
-- Supports: Claude Code only
-- Workflow phases: PLAN → PREP → EXEC → VALIDATE → DIAGNOSE → REPAIR → CHECKPOINT → DONE
-- Workspace modes: patch (default), worktree
-
-## Core Components
-- **Engine** (`src/core/engine/`) - Loop state machine, repair logic, context packing
-- **Spec Loader** (`src/core/spec/`) - Zod schemas, DAG builder, file contracts
-- **Backends** (`src/core/backends/`) - ClaudeCode adapter (+ noop)
-- **tasks.md** (`src/core/spec/tasks-md.ts`) - loop-ready format: files declared per task, test tasks before impl; lint mirrors loop.mjs/judge.mjs parsing
-- **Validators** (`src/core/validators/`) - Runner + parsers (tsc, eslint, jest)
-- **Budgets** (`src/core/budgets/`) - Tier tracking, degrade mode
-- **Memory** (`src/core/memory/`) - SQLite persistence, ledger logging
-- **Workspace** (`src/core/workspace/`) - Patch mode, worktree mode
-
-## CLI Commands
-- `ralphy-spec init` - Initialize project with openspec/project.yml
-- `ralphy-spec run` - Execute tasks with AI backend
-- `ralphy-spec status` - Show current run state
-- `ralphy-spec report` - Generate markdown report
-- `ralphy-spec tail` - Stream ledger events
-- `ralphy-spec checkpoint` - Manual checkpoint creation
-
-## Conventions
-- Code style: TypeScript strict mode
-- Testing: (to be added)
-- CI: GitHub Actions (deploy-docs.yml)
-- File structure: src/cli/, src/core/, src/utils/, src/templates/
-
-## Key Directories
-- `src/cli/` - CLI command implementations
-- `src/core/` - Core engine, spec, backends, validators, budgets, memory, workspace
-- `src/utils/` - Shared utilities (detector, installer, paths, validator)
-- `src/templates/` - AI tool prompt templates
-- `docs/` - Astro-based documentation site
+## Components
+- `src/cli/` — `init`, `update`, `validate`, `tasks check|files`
+- `src/core/spec/tasks-md.ts` — tasks.md parser/linter. Mirrors how loop.mjs reads tasks.md (groups `## N.`, 4-space continuation, path extraction, test/impl kind) and judge.mjs rules (test file pattern, hash lock, infra files). Keep the mirrored regexes in sync with the loop.
+- `src/utils/installer.ts` — installs `.claude/commands/specloop-*.md`, OpenSpec scaffold and `CLAUDE.md` (with `## Comandos` from package.json scripts)
+- `src/templates/claude-code/` — slash commands; `src/templates/shared/openspec-tasks-template.md` — tasks.md model (its example is linted by a test)
 
 ## External References
-- [Ralph Wiggum methodology](https://ghuntley.com/ralph)
-- [opencode-ralph-wiggum](https://github.com/Th0rgal/opencode-ralph-wiggum)
 - [OpenSpec](https://github.com/Fission-AI/openspec)
+- [Ralph Wiggum methodology](https://ghuntley.com/ralph)

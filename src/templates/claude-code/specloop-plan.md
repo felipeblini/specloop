@@ -18,7 +18,8 @@ A implementação NÃO acontece nesta sessão. Ela roda depois, no terminal, pel
 5. Spec deltas em `specs/` com `## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`. Linguagem MUST/SHALL; todo `### Requirement:` tem pelo menos um `#### Scenario:`.
 6. `tasks.md` no formato abaixo.
 7. `CLAUDE.md`, seção `## Comandos`: um bloco de código com um comando por linha (typecheck, lint, testes, build, na ordem). Se o `package.json` ainda não existe, escreva os comandos que o scaffold vai criar.
-8. Rode `npx specloop tasks check <change>` e corrija todo ERRO e AVISO. Depois `npx specloop tasks files <change> --fases` e confira se a sequência de fases faz sentido.
+8. Se o CLI do OpenSpec estiver instalado (`openspec --version`), rode `openspec validate <change> --strict` e corrija o formato do proposal e das spec deltas. Sem ele, confira as regras do passo 5 à mão.
+9. Rode `npx specloop tasks check <change>` e corrija todo ERRO e AVISO. Depois `npx specloop tasks files <change> --fases` e confira se a sequência de fases faz sentido.
 
 ## Formato do tasks.md (obrigatório)
 

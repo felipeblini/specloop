@@ -1,59 +1,16 @@
 import type { Command } from "commander";
-import { parseToolsArg } from "../utils/tools";
 import { resolveProjectDir } from "../utils/paths";
+import { parseToolsArg } from "../utils/tools";
 import { validateProject } from "../utils/validator";
-import { SpecLoader } from "../core/spec/loader";
-import { ValidatorRunner } from "../core/validators/runner";
 
 export function registerValidateCommand(program: Command): void {
   program
     .command("validate")
     .description("Validate that the specloop setup is complete")
     .option("--dir <path>", "Target project directory (default: current directory)")
-    .option("--task <taskId>", "Validate a specific task via validators (v2)")
     .option("--tools <list>", "Kept for compatibility. Only claude-code is supported.")
-    .action(async (opts: { dir?: string; tools?: string; task?: string }) => {
+    .action(async (opts: { dir?: string; tools?: string }) => {
       const dir = resolveProjectDir(opts.dir);
-
-      if (opts.task) {
-        try {
-          const loader = new SpecLoader(dir);
-          const spec = await loader.loadProjectSpec();
-          const task = (spec.tasks ?? []).find((t) => t.id === opts.task);
-          if (!task) {
-            process.stderr.write(`Unknown task id: ${opts.task}\n`);
-            process.exitCode = 4;
-            return;
-          }
-
-          const ids = task.validators ?? spec.defaults.validators ?? [];
-          const validators =
-            (spec.validators ?? [])
-              .filter((v) => ids.includes(v.id))
-              .map((v) => ({
-                id: v.id,
-                run: v.run,
-                timeoutMs: v.timeoutSeconds ? v.timeoutSeconds * 1000 : undefined,
-                parser: v.parser,
-              })) ?? [];
-
-          const runner = new ValidatorRunner({
-            cwd: dir,
-            commandTimeoutMs: (spec.budgets?.limits?.commandTimeoutSeconds ?? 900) * 1000,
-          });
-          const results = await runner.runAll(validators);
-          process.stdout.write(JSON.stringify({ ok: true, taskId: task.id, results }, null, 2) + "\n");
-          const hasErrors = Object.values(results).some((r) => !r.ok);
-          process.exitCode = hasErrors ? 1 : 0;
-          return;
-        } catch (e: any) {
-          process.stderr.write(e?.message ? String(e.message) : String(e));
-          process.stderr.write("\n");
-          process.exitCode = 4;
-          return;
-        }
-      }
-
       const tools = parseToolsArg(opts.tools);
       const issues = await validateProject(dir, tools);
 
@@ -61,16 +18,10 @@ export function registerValidateCommand(program: Command): void {
         process.stdout.write("OK: specloop setup looks good.\n");
         return;
       }
-
       for (const issue of issues) {
         const prefix = issue.level === "error" ? "ERROR" : "WARN";
-        process.stdout.write(
-          `${prefix}: ${issue.message}${issue.path ? ` (${issue.path})` : ""}\n`
-        );
+        process.stdout.write(`${prefix}: ${issue.message}${issue.path ? ` (${issue.path})` : ""}\n`);
       }
-
-      const hasErrors = issues.some((i) => i.level === "error");
-      process.exitCode = hasErrors ? 1 : 0;
+      process.exitCode = issues.some((i) => i.level === "error") ? 1 : 0;
     });
 }
-

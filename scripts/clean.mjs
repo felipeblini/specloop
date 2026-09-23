@@ -9,6 +9,7 @@ async function rmIfExists(p) {
   }
 }
 
-const root = path.resolve(new URL(".", import.meta.url).pathname, "..", "..");
+// scripts/ -> repo root (upstream went one level too far and removed ../dist)
+const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
 await rmIfExists(path.join(root, "dist"));
 
