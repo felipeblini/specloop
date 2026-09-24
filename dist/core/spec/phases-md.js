@@ -1,6 +1,6 @@
 "use strict";
 /**
- * phases.md: the contract ralph-loop.mjs reads instead of tasks.md.
+ * project-phases.md: the contract ralph-loop.mjs reads instead of tasks.md.
  *
  * tasks.md is for people (and for the planner): groups, tasks, cases. The loop needs
  * something else — one block per session, with its kind (teste|impl) and its scope.
@@ -23,7 +23,7 @@
  *
  * Only `## Phase N:` at level 2. The scope (`arquivos`) is what the tasks DECLARE
  * (CRIA/ALTERA/REMOVE), which `tasks check` already forces to equal what the loop would
- * have extracted from the text. The sha256 lets the loop refuse a phases.md generated
+ * have extracted from the text. The sha256 lets the loop refuse a project-phases.md generated
  * from an older tasks.md.
  */
 Object.defineProperty(exports, "__esModule", { value: true });

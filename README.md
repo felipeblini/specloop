@@ -1,6 +1,6 @@
 # specloop
 
-Planejamento OpenSpec para Claude Code, com um `phases.md` pronto para o loop externo (`ralph-loop.mjs` + `judge.mjs`). Cada tarefa declara os arquivos que cria, altera ou remove — HTML, CSS e testes inclusive — e cada teste é uma tarefa própria, antes da implementação.
+Planejamento OpenSpec para Claude Code, com um `project-phases.md` pronto para o loop externo (`ralph-loop.mjs` + `judge.mjs`). Cada tarefa declara os arquivos que cria, altera ou remove — HTML, CSS e testes inclusive — e cada teste é uma tarefa própria, antes da implementação.
 
 Fork de [wenqingyu/ralphy-openspec](https://github.com/wenqingyu/ralphy-openspec) 0.3.6 (commit `0c1cf7a`). Veja o [CHANGELOG](CHANGELOG.md).
 
@@ -42,11 +42,11 @@ specloop init
 
 Cria `.claude/commands/specloop-*.md`, `openspec/` (`specs/`, `changes/`, `changes/archive/`, `project.md`) e, se não existir, `CLAUDE.md` com a seção `## Comandos` preenchida a partir dos scripts do `package.json` (o `ralph-loop.mjs` exige o `CLAUDE.md`; o `judge.mjs` roda esses comandos). `specloop update` atualiza os comandos e apaga os antigos `ralphy-*.md`.
 
-## phases.md
+## project-phases.md
 
 O `tasks.md` é para gente: grupos, tarefas, casos. O loop precisa de outra coisa: uma
 seção por sessão, com o tipo (`teste`|`impl`) e o escopo. `specloop phases [change]`
-faz essa derivação uma vez e grava `openspec/changes/<change>/phases.md`:
+faz essa derivação uma vez e grava `openspec/changes/<change>/project-phases.md`:
 
 ```markdown
 # Phases: add-prize-card
@@ -65,7 +65,7 @@ faz essa derivação uma vez e grava `openspec/changes/<change>/phases.md`:
 
 - Só gera se o `tasks check` não tiver ERRO. `--max-fases N` recusa plano grande.
 - O escopo é o que as tarefas declaram (`CRIA`/`ALTERA`/`REMOVE`).
-- O `ralph-loop.mjs` prefere o `phases.md` ao `tasks.md` e recusa um `phases.md` cujo
+- O `ralph-loop.mjs` prefere o `project-phases.md` ao `tasks.md` e recusa um `project-phases.md` cujo
   sha256 não bate com o `tasks.md` atual: mudou o plano, rode `specloop phases` de novo.
 - Regras de fase e "Pronto quando" são do loop, não entram no arquivo.
 
@@ -119,7 +119,7 @@ specloop tasks check [change]            # valida contra o que o loop e o juiz f
 specloop tasks files [change]            # arquivos por tarefa
 specloop tasks files [change] --by-file  # quais tarefas tocam cada arquivo
 specloop tasks files [change] --fases    # as fases que o ralph-loop.mjs vai rodar (igual ao ralph-loop.mjs --listar)
-specloop phases [change] [--max-fases N] # grava o phases.md que o ralph-loop.mjs executa
+specloop phases [change] [--max-fases N] # grava o project-phases.md que o ralph-loop.mjs executa
 specloop validate                        # confere a instalação no projeto
 ```
 

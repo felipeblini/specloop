@@ -10,8 +10,8 @@ function buildProgram() {
     const program = new commander_1.Command();
     program
         .name("specloop")
-        .description("OpenSpec planning for Claude Code, with phases.md ready for the external loop (ralph-loop.mjs + judge.mjs).")
-        .version("0.7.0");
+        .description("OpenSpec planning for Claude Code, with project-phases.md ready for the external loop (ralph-loop.mjs + judge.mjs).")
+        .version("0.8.0");
     (0, init_1.registerInitCommand)(program);
     (0, update_1.registerUpdateCommand)(program);
     (0, validate_1.registerValidateCommand)(program);

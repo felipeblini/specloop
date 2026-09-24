@@ -137,3 +137,8 @@ Renomeado para **specloop**. A implementação sai da sessão: roda no terminal 
 
 ### Changed (cont.)
 - Templates chamam `specloop` direto em vez de `npx specloop` (o pacote não está no npm; `npx` baixaria outro com o mesmo nome).
+
+## [0.8.0] - 2026-09-23
+
+### Changed
+- `specloop phases` grava `openspec/changes/<change>/project-phases.md` (era `phases.md`). O `ralph-loop.mjs` procura esse nome primeiro e ainda aceita o `phases.md` antigo.

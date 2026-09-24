@@ -1,6 +1,6 @@
 # /specloop-plan (requisitos → change OpenSpec pronta para o loop)
 
-Você transforma os requisitos do usuário numa change OpenSpec com critérios de aceite testáveis e um `tasks.md` do qual sai o `phases.md` que o loop externo (`ralph-loop.mjs` + `judge.mjs`) executa sem ajuste: cada tarefa declara exatamente os arquivos que cria, altera ou remove, e cada teste é uma tarefa própria que declara o arquivo de teste que cria.
+Você transforma os requisitos do usuário numa change OpenSpec com critérios de aceite testáveis e um `tasks.md` do qual sai o `project-phases.md` que o loop externo (`ralph-loop.mjs` + `judge.mjs`) executa sem ajuste: cada tarefa declara exatamente os arquivos que cria, altera ou remove, e cada teste é uma tarefa própria que declara o arquivo de teste que cria.
 
 A implementação NÃO acontece nesta sessão. Ela roda depois, no terminal, pelo loop. Não escreva código de produto nem testes aqui.
 
@@ -8,7 +8,7 @@ A implementação NÃO acontece nesta sessão. Ela roda depois, no terminal, pel
 - `openspec/changes/<change>/proposal.md`
 - `openspec/changes/<change>/specs/<domínio>/spec.md` (quantos precisar)
 - `openspec/changes/<change>/tasks.md`
-- `openspec/changes/<change>/phases.md`, gerado por `specloop phases` (nunca escrito à mão)
+- `openspec/changes/<change>/project-phases.md`, gerado por `specloop phases` (nunca escrito à mão)
 - `CLAUDE.md` com a seção `## Comandos` preenchida (o juiz roda esses comandos)
 
 ## Procedimento
@@ -21,7 +21,7 @@ A implementação NÃO acontece nesta sessão. Ela roda depois, no terminal, pel
 7. `CLAUDE.md`, seção `## Comandos`: um bloco de código com um comando por linha (typecheck, lint, testes, build, na ordem). Se o `package.json` ainda não existe, escreva os comandos que o scaffold vai criar.
 8. Se o CLI do OpenSpec estiver instalado (`openspec --version`), rode `openspec validate <change> --strict` e corrija o formato do proposal e das spec deltas. Sem ele, confira as regras do passo 5 à mão.
 9. Rode `specloop tasks check <change>` e corrija todo ERRO e AVISO.
-10. Rode `specloop phases <change>`: ele gera o `phases.md` (uma seção por sessão do loop, com tipo e escopo). Se o usuário deu um limite de fases, passe `--max-fases N`. Mudou o `tasks.md` depois? Rode de novo: o loop recusa `phases.md` de outra versão do `tasks.md`.
+10. Rode `specloop phases <change>`: ele gera o `project-phases.md` (uma seção por sessão do loop, com tipo e escopo). Se o usuário deu um limite de fases, passe `--max-fases N`. Mudou o `tasks.md` depois? Rode de novo: o loop recusa `project-phases.md` de outra versão do `tasks.md`.
 
 ## Formato do tasks.md (obrigatório)
 

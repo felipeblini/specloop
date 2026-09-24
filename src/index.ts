@@ -11,9 +11,9 @@ function buildProgram(): Command {
   program
     .name("specloop")
     .description(
-      "OpenSpec planning for Claude Code, with phases.md ready for the external loop (ralph-loop.mjs + judge.mjs)."
+      "OpenSpec planning for Claude Code, with project-phases.md ready for the external loop (ralph-loop.mjs + judge.mjs)."
     )
-    .version("0.7.0");
+    .version("0.8.0");
 
   registerInitCommand(program);
   registerUpdateCommand(program);

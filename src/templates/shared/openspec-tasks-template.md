@@ -2,7 +2,7 @@
 
 Estrutura de `openspec/changes/<change>/tasks.md`. Ela é lida por duas pontas:
 por você, e pelo `specloop phases`, que transforma cada grupo em fases de **teste**
-e de **implementação** no `phases.md` — o documento que o loop externo
+e de **implementação** no `project-phases.md` — o documento que o loop externo
 (`ralph-loop.mjs` + `judge.mjs`) executa, com os arquivos declarados em cada tarefa
 como escopo da fase. Confira e gere com:
 
