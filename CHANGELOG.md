@@ -142,3 +142,8 @@ Renomeado para **specloop**. A implementação sai da sessão: roda no terminal 
 
 ### Changed
 - `specloop phases` grava `openspec/changes/<change>/project-phases.md` (era `phases.md`). O `ralph-loop.mjs` procura esse nome primeiro e ainda aceita o `phases.md` antigo.
+
+## [0.8.1] - 2026-09-25
+
+### Changed
+- Primeira publicação no npm como `specloop-ralph` (conta `blini`). O `0.8.0` chegou a ser publicado e foi removido; o npm não aceita o mesmo nome@versão de novo, então o código do 0.8.0 sai como 0.8.1, sem mudança de comportamento.

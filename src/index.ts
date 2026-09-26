@@ -13,7 +13,7 @@ function buildProgram(): Command {
     .description(
       "OpenSpec planning for Claude Code, with project-phases.md ready for the external loop (ralph-loop.mjs + judge.mjs)."
     )
-    .version("0.8.0");
+    .version("0.8.1");
 
   registerInitCommand(program);
   registerUpdateCommand(program);
